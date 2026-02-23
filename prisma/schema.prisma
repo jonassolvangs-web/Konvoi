@@ -1,0 +1,310 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Models ─────────────────────────────────────────
+// Note: SQLite doesn't support enums. String fields are used with
+// expected values documented in comments.
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  phone         String?
+  passwordHash  String   @map("password_hash")
+  roles         String   @default("[]") // JSON array e.g. '["ADMIN","TEKNIKER"]'
+  activeRole    String?  @map("active_role")
+  profileImageUrl String? @map("profile_image_url")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  assignedOrganizations Organization[] @relation("AssignedTo")
+  appointments          Appointment[]
+  visits                Visit[]
+  workOrders            WorkOrder[]
+  callRecords           CallRecord[]
+  chatMessages          ChatMessage[]
+  notifications         Notification[]
+  availability          Availability[]
+
+  @@map("users")
+}
+
+model Organization {
+  id                    String   @id @default(cuid())
+  name                  String
+  orgNumber             String?  @unique @map("org_number")
+  address               String
+  postalCode            String?  @map("postal_code")
+  city                  String?
+  latitude              Float?
+  longitude             Float?
+  distanceFromOfficeKm  Float?   @map("distance_from_office_km")
+  distanceFromOfficeMin Int?     @map("distance_from_office_min")
+  numUnits              Int?     @map("num_units")
+  buildingYear          Int?     @map("building_year")
+  managementCompany     String?  @map("management_company")
+  chairmanName          String?  @map("chairman_name")
+  chairmanPhone         String?  @map("chairman_phone")
+  chairmanEmail         String?  @map("chairman_email")
+  status                String   @default("ikke_tildelt") // OrgStatus
+  notes                 String?
+  assignedToId          String?  @map("assigned_to_id")
+  assignedTo            User?    @relation("AssignedTo", fields: [assignedToId], references: [id])
+  lastContactedAt       DateTime? @map("last_contacted_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  appointments      Appointment[]
+  visits            Visit[]
+  dwellingUnits     DwellingUnit[]
+  workOrders        WorkOrder[]
+  callRecords       CallRecord[]
+  chatMessages      ChatMessage[]
+  cleaningHistories CleaningHistory[]
+  filterSubscriptions FilterSubscription[]
+
+  @@map("organizations")
+}
+
+model Appointment {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id])
+  scheduledAt     DateTime @map("scheduled_at")
+  endAt           DateTime? @map("end_at")
+  status          String   @default("planlagt") // AppointmentStatus
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  visits Visit[]
+
+  @@map("appointments")
+}
+
+model Visit {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  appointmentId   String?  @map("appointment_id")
+  appointment     Appointment? @relation(fields: [appointmentId], references: [id])
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id])
+  source          String   @default("booking") // VisitSource: booking | dor_til_dor
+  status          String   @default("planlagt") // VisitStatus: planlagt | pagaar | fullfort
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  unitsSold       Int      @default(0) @map("units_sold")
+  totalRevenue    Float    @default(0) @map("total_revenue")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  dwellingUnits DwellingUnit[]
+
+  @@map("visits")
+}
+
+model DwellingUnit {
+  id                String   @id @default(cuid())
+  organizationId    String   @map("organization_id")
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  visitId           String?  @map("visit_id")
+  visit             Visit?   @relation(fields: [visitId], references: [id])
+  unitNumber        String   @map("unit_number")
+  floor             Int?
+  residentName      String?  @map("resident_name")
+  residentPhone     String?  @map("resident_phone")
+  residentEmail     String?  @map("resident_email")
+  visitStatus       String   @default("ikke_besokt") // DwellingVisitStatus
+  orderType         String?  @map("order_type") // OrderType: ventilasjonsrens | service
+  product           String?  // Product name: e.g. "Medium", "Stor", "Ny reim"
+  price             Float?   // Product price: e.g. 4990
+  paymentPlanMonths Int?     @map("payment_plan_months") // e.g. 2, 3
+  paymentMethod     String?  @map("payment_method") // vipps | faktura | kontant
+  smsSent           Boolean  @default(false) @map("sms_sent")
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  workOrderUnits    WorkOrderUnit[]
+  filterSubscriptions FilterSubscription[]
+
+  @@map("dwelling_units")
+}
+
+model ServiceProduct {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workOrderUnits WorkOrderUnit[]
+
+  @@map("service_products")
+}
+
+model WorkOrder {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  technicianId    String   @map("technician_id")
+  technician      User     @relation(fields: [technicianId], references: [id])
+  scheduledAt     DateTime @map("scheduled_at")
+  status          String   @default("planlagt") // WorkOrderStatus: planlagt | pagaar | fullfort
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  signatureUrl    String?  @map("signature_url")
+  reportUrl       String?  @map("report_url")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  units WorkOrderUnit[]
+
+  @@map("work_orders")
+}
+
+model WorkOrderUnit {
+  id                String   @id @default(cuid())
+  workOrderId       String   @map("work_order_id")
+  workOrder         WorkOrder @relation(fields: [workOrderId], references: [id])
+  dwellingUnitId    String   @map("dwelling_unit_id")
+  dwellingUnit      DwellingUnit @relation(fields: [dwellingUnitId], references: [id])
+  productId         String?  @map("product_id")
+  product           ServiceProduct? @relation(fields: [productId], references: [id])
+  orderType         String   @default("ventilasjonsrens") @map("order_type") // OrderType
+  productName       String?  @map("product_name") // Product name from feltselger
+  price             Float    @default(0)
+  paymentMethod     String?  @map("payment_method") // PaymentMethod: vipps | faktura | kontant
+  paymentStatus     String   @default("ikke_betalt") @map("payment_status") // PaymentStatus
+  paymentPlanMonths Int?     @map("payment_plan_months")
+  status            String   @default("ikke_startet") // WorkOrderUnitStatus: ikke_startet | fullfort
+  checklist         String?  // JSON string
+  airBefore         Float?   @map("air_before")
+  airAfter          Float?   @map("air_after")
+  photoBeforeUrl    String?  @map("photo_before_url")
+  photoAfterUrl     String?  @map("photo_after_url")
+  notes             String?
+  originalOrderType String?  @map("original_order_type") // For order changes
+  originalProduct   String?  @map("original_product")
+  originalPrice     Float?   @map("original_price")
+  completedAt       DateTime? @map("completed_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("work_order_units")
+}
+
+model FilterSubscription {
+  id              String   @id @default(cuid())
+  dwellingUnitId  String   @map("dwelling_unit_id")
+  dwellingUnit    DwellingUnit @relation(fields: [dwellingUnitId], references: [id])
+  organizationId  String   @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  months          Int      @default(12)
+  pricePerMonth   Float    @map("price_per_month")
+  status          String   @default("active") // SubscriptionStatus: active | expired | cancelled
+  startDate       DateTime @map("start_date")
+  endDate         DateTime @map("end_date")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("filter_subscriptions")
+}
+
+model CleaningHistory {
+  id                String   @id @default(cuid())
+  organizationId    String   @map("organization_id")
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  completedDate     DateTime @map("completed_date")
+  nextCleaningDate  DateTime @map("next_cleaning_date")
+  reminderStatus    String   @default("ok") @map("reminder_status") // ReminderStatus
+  numUnitsCompleted Int      @default(0) @map("num_units_completed")
+  totalRevenue      Float    @default(0) @map("total_revenue")
+  avgAirImprovement Float?   @map("avg_air_improvement")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("cleaning_histories")
+}
+
+model CallRecord {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id])
+  result          String   // CallResult: mote_booket | ikke_svar | ring_tilbake | nei
+  callbackAt      DateTime? @map("callback_at")
+  notes           String?
+  duration        Int?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("call_records")
+}
+
+model ChatMessage {
+  id              String   @id @default(cuid())
+  channelType     String   @map("channel_type") // ChatChannelType: direct | organization
+  channelId       String   @map("channel_id")
+  senderId        String   @map("sender_id")
+  sender          User     @relation(fields: [senderId], references: [id])
+  organizationId  String?  @map("organization_id")
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  content         String
+  isSystem        Boolean  @default(false) @map("is_system")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([channelId, createdAt])
+  @@map("chat_messages")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  type      String   @default("info")
+  isRead    Boolean  @default(false) @map("is_read")
+  linkUrl   String?  @map("link_url")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
+model Availability {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  dayOfWeek Int      @map("day_of_week")
+  startTime String   @map("start_time")
+  endTime   String   @map("end_time")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("availability")
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
