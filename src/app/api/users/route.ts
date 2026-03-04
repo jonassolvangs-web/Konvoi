@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     let parsed = users.map((u) => ({
       ...u,
       roles: typeof u.roles === 'string' ? JSON.parse(u.roles) : u.roles,
+      profileImageUrl: u.profileImageUrl ? `/api/users/${u.id}/profile-image?v=1` : null,
     }));
 
     if (role) {
