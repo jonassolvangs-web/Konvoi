@@ -93,14 +93,40 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Du kan ikke slette deg selv' }, { status: 400 });
     }
 
-    await prisma.user.delete({
-      where: { id },
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      return NextResponse.json({ error: 'Bruker ikke funnet' }, { status: 404 });
+    }
+
+    // Clean up all related data before deleting user
+    // First: delete work order units belonging to this user's work orders
+    const userWorkOrders = await prisma.workOrder.findMany({
+      where: { technicianId: id },
+      select: { id: true },
     });
+    const workOrderIds = userWorkOrders.map((wo) => wo.id);
+
+    await prisma.$transaction([
+      // Delete work order units first (child of work orders)
+      ...(workOrderIds.length > 0
+        ? [prisma.workOrderUnit.deleteMany({ where: { workOrderId: { in: workOrderIds } } })]
+        : []),
+      prisma.workOrder.deleteMany({ where: { technicianId: id } }),
+      prisma.notification.deleteMany({ where: { userId: id } }),
+      prisma.chatMessage.deleteMany({ where: { senderId: id } }),
+      prisma.callRecord.deleteMany({ where: { userId: id } }),
+      prisma.availability.deleteMany({ where: { userId: id } }),
+      prisma.visit.deleteMany({ where: { userId: id } }),
+      prisma.appointment.deleteMany({ where: { userId: id } }),
+      prisma.organization.updateMany({ where: { assignedToId: id }, data: { assignedToId: null } }),
+      prisma.user.delete({ where: { id } }),
+    ]);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
     if (error.message === 'Ikke autentisert') return NextResponse.json({ error: 'Ikke autentisert' }, { status: 401 });
     if (error.message === 'Ingen tilgang') return NextResponse.json({ error: 'Ingen tilgang' }, { status: 403 });
+    console.error('Delete user error:', error);
     return NextResponse.json({ error: 'Intern feil' }, { status: 500 });
   }
 }
