@@ -7,6 +7,7 @@ CREATE TABLE "users" (
     "password_hash" TEXT NOT NULL,
     "roles" TEXT NOT NULL DEFAULT '[]',
     "active_role" TEXT,
+    "profile_image_url" TEXT,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" DATETIME NOT NULL
@@ -86,6 +87,11 @@ CREATE TABLE "dwelling_units" (
     "resident_email" TEXT,
     "visitStatus" TEXT NOT NULL DEFAULT 'ikke_besokt',
     "order_type" TEXT,
+    "product" TEXT,
+    "price" REAL,
+    "payment_plan_months" INTEGER,
+    "payment_method" TEXT,
+    "sms_sent" BOOLEAN NOT NULL DEFAULT false,
     "notes" TEXT,
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" DATETIME NOT NULL,
@@ -129,9 +135,11 @@ CREATE TABLE "work_order_units" (
     "dwelling_unit_id" TEXT NOT NULL,
     "product_id" TEXT,
     "order_type" TEXT NOT NULL DEFAULT 'ventilasjonsrens',
+    "product_name" TEXT,
     "price" REAL NOT NULL DEFAULT 0,
     "payment_method" TEXT,
     "payment_status" TEXT NOT NULL DEFAULT 'ikke_betalt',
+    "payment_plan_months" INTEGER,
     "status" TEXT NOT NULL DEFAULT 'ikke_startet',
     "checklist" TEXT,
     "air_before" REAL,
@@ -139,6 +147,9 @@ CREATE TABLE "work_order_units" (
     "photo_before_url" TEXT,
     "photo_after_url" TEXT,
     "notes" TEXT,
+    "original_order_type" TEXT,
+    "original_product" TEXT,
+    "original_price" REAL,
     "completed_at" DATETIME,
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" DATETIME NOT NULL,
@@ -223,9 +234,11 @@ CREATE TABLE "notifications" (
 CREATE TABLE "availability" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "user_id" TEXT NOT NULL,
-    "day_of_week" INTEGER NOT NULL,
+    "day_of_week" INTEGER,
+    "date" DATETIME,
     "start_time" TEXT NOT NULL,
     "end_time" TEXT NOT NULL,
+    "is_blocked" BOOLEAN NOT NULL DEFAULT false,
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" DATETIME NOT NULL,
     CONSTRAINT "availability_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
@@ -248,6 +261,12 @@ CREATE UNIQUE INDEX "organizations_org_number_key" ON "organizations"("org_numbe
 
 -- CreateIndex
 CREATE INDEX "chat_messages_channel_id_created_at_idx" ON "chat_messages"("channel_id", "created_at");
+
+-- CreateIndex
+CREATE INDEX "availability_user_id_date_idx" ON "availability"("user_id", "date");
+
+-- CreateIndex
+CREATE INDEX "availability_user_id_day_of_week_idx" ON "availability"("user_id", "day_of_week");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "settings_key_key" ON "settings"("key");

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { format, addDays, isWeekend } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { nb } from 'date-fns/locale';
 import ToggleTabs from '@/components/ui/toggle-tabs';
 import FilterChips from '@/components/ui/filter-chips';
@@ -11,6 +11,7 @@ import OrgBottomSheet from '@/components/motebooker/org-bottom-sheet';
 import Modal from '@/components/ui/modal';
 import Button from '@/components/ui/button';
 import Input from '@/components/ui/input';
+import AvailableSlotPicker from '@/components/ui/available-slot-picker';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { cn, orgStatusConfig } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
@@ -35,27 +36,6 @@ interface Organization {
   assignedToId: string | null;
 }
 
-// Generate next 14 weekdays
-function getNext14Days(): Date[] {
-  const days: Date[] = [];
-  let d = new Date();
-  for (let i = 0; i < 21 && days.length < 14; i++) {
-    const candidate = addDays(d, i);
-    days.push(candidate);
-  }
-  return days;
-}
-
-// Generate time slots 08:00 - 16:00 (30-min intervals)
-function getTimeSlots(): string[] {
-  const slots: string[] = [];
-  for (let h = 8; h <= 15; h++) {
-    slots.push(`${String(h).padStart(2, '0')}:00`);
-    slots.push(`${String(h).padStart(2, '0')}:30`);
-  }
-  slots.push('16:00');
-  return slots;
-}
 
 export default function KartPage() {
   const { data: session } = useSession();
@@ -405,9 +385,6 @@ export default function KartPage() {
     { id: 'mote_booket', label: 'Booket', count: filterCounts.mote_booket || 0 },
   ];
 
-  const days = getNext14Days();
-  const timeSlots = getTimeSlots();
-
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -517,56 +494,22 @@ export default function KartPage() {
             </select>
           </div>
 
-          {/* Date strip */}
-          <div>
-            <label className="label">Dato</label>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              {days.map((day) => {
-                const isWknd = isWeekend(day);
-                const isSelected = bookSelectedDate && format(bookSelectedDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
-                return (
-                  <button
-                    key={day.toISOString()}
-                    onClick={() => !isWknd && setBookSelectedDate(day)}
-                    disabled={isWknd}
-                    className={cn(
-                      'flex flex-col items-center min-w-[52px] px-2 py-2 rounded-xl text-xs transition-colors',
-                      isWknd && 'opacity-30 cursor-not-allowed',
-                      isSelected
-                        ? 'bg-black text-white'
-                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                    )}
-                  >
-                    <span className="font-medium">{format(day, 'EEE', { locale: nb })}</span>
-                    <span className="text-lg font-bold">{format(day, 'd')}</span>
-                    <span>{format(day, 'MMM', { locale: nb })}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Time grid */}
-          {bookSelectedDate && (
-            <div>
-              <label className="label">Tid</label>
-              <div className="grid grid-cols-4 gap-2">
-                {timeSlots.map((slot) => (
-                  <button
-                    key={slot}
-                    onClick={() => setBookSelectedTime(slot)}
-                    className={cn(
-                      'py-2 rounded-xl text-sm font-medium transition-colors',
-                      bookSelectedTime === slot
-                        ? 'bg-black text-white'
-                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                    )}
-                  >
-                    {slot}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Availability-based date/time picker */}
+          {bookSelectedFeltselger && (
+            <AvailableSlotPicker
+              userId={bookSelectedFeltselger}
+              onSelect={(date, time) => {
+                setBookSelectedDate(new Date(date + 'T12:00:00'));
+                setBookSelectedTime(time);
+              }}
+              selectedDate={bookSelectedDate ? format(bookSelectedDate, 'yyyy-MM-dd') : null}
+              selectedTime={bookSelectedTime}
+            />
+          )}
+          {!bookSelectedFeltselger && (
+            <p className="text-sm text-gray-400 text-center py-4">
+              Velg feltselger for å se ledige tider
+            </p>
           )}
 
           {/* Confirm */}

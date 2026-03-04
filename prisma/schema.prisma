@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Models ─────────────────────────────────────────
@@ -131,6 +132,8 @@ model DwellingUnit {
   price             Float?   // Product price: e.g. 4990
   paymentPlanMonths Int?     @map("payment_plan_months") // e.g. 2, 3
   paymentMethod     String?  @map("payment_method") // vipps | faktura | kontant
+  scheduledAt       DateTime? @map("scheduled_at")
+  technicianId      String?  @map("technician_id")
   smsSent           Boolean  @default(false) @map("sms_sent")
   notes             String?
   createdAt         DateTime @default(now()) @map("created_at")
@@ -197,6 +200,7 @@ model WorkOrderUnit {
   airAfter          Float?   @map("air_after")
   photoBeforeUrl    String?  @map("photo_before_url")
   photoAfterUrl     String?  @map("photo_after_url")
+  reportSentAt      DateTime? @map("report_sent_at")
   notes             String?
   originalOrderType String?  @map("original_order_type") // For order changes
   originalProduct   String?  @map("original_product")
@@ -287,15 +291,19 @@ model Notification {
 }
 
 model Availability {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id])
-  dayOfWeek Int      @map("day_of_week")
-  startTime String   @map("start_time")
-  endTime   String   @map("end_time")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id])
+  dayOfWeek Int?      @map("day_of_week")
+  date      DateTime? @map("date")
+  startTime String    @map("start_time")
+  endTime   String    @map("end_time")
+  isBlocked Boolean   @default(false) @map("is_blocked")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
+  @@index([userId, date])
+  @@index([userId, dayOfWeek])
   @@map("availability")
 }
 

@@ -40,6 +40,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // Handle unit updates (checklist, air measurements, payment, order changes)
     if (body.unitId) {
       const { unitId, ...unitData } = body;
+      // Serialize checklist array to JSON string for storage
+      if (unitData.checklist && Array.isArray(unitData.checklist)) {
+        unitData.checklist = JSON.stringify(unitData.checklist);
+      }
+      // Convert reportSentAt string to Date
+      if (unitData.reportSentAt && typeof unitData.reportSentAt === 'string') {
+        unitData.reportSentAt = new Date(unitData.reportSentAt);
+      }
       const unit = await prisma.workOrderUnit.update({
         where: { id: unitId },
         data: unitData,

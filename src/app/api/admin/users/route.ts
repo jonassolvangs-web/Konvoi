@@ -48,6 +48,7 @@ export async function GET() {
   } catch (error: any) {
     if (error.message === 'Ikke autentisert') return NextResponse.json({ error: 'Ikke autentisert' }, { status: 401 });
     if (error.message === 'Ingen tilgang') return NextResponse.json({ error: 'Ingen tilgang' }, { status: 403 });
+    console.error('GET /api/admin/users error:', error);
     return NextResponse.json({ error: 'Intern feil' }, { status: 500 });
   }
 }

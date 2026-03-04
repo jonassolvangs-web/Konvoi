@@ -3,20 +3,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
-  ArrowLeft, MapPin, Building2, Clock, Plus, Play, CheckCircle,
-  Phone, User, ChevronDown, ChevronUp, Wrench, ShoppingCart,
+  ArrowLeft, Clock, Plus, Play, CheckCircle, Check,
+  Phone, User, ChevronDown, ChevronUp, Wrench, MessageSquare,
 } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
-import Badge from '@/components/ui/badge';
 import StatusBadge from '@/components/ui/status-badge';
 import Modal from '@/components/ui/modal';
 import Input from '@/components/ui/input';
-import Select from '@/components/ui/select';
+import AvailableSlotPicker from '@/components/ui/available-slot-picker';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import EmptyState from '@/components/ui/empty-state';
-import { formatDate, formatTime, formatCurrency } from '@/lib/utils';
-import { productsByOrderType, paymentPlanOptions } from '@/lib/constants';
+import { formatDate, formatTime } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 interface DwellingUnit {
@@ -32,6 +30,8 @@ interface DwellingUnit {
   price: number | null;
   paymentPlanMonths: number | null;
   paymentMethod: string | null;
+  scheduledAt: string | null;
+  technicianId: string | null;
   smsSent: boolean;
   notes: string | null;
 }
@@ -78,11 +78,9 @@ export default function FeltselgerBesokDetailPage() {
   const [regResidentName, setRegResidentName] = useState('');
   const [regResidentPhone, setRegResidentPhone] = useState('');
   const [regResidentEmail, setRegResidentEmail] = useState('');
-  const [regOrderType, setRegOrderType] = useState('ventilasjonsrens');
-  const [regProduct, setRegProduct] = useState('');
-  const [regPrice, setRegPrice] = useState(0);
-  const [regPaymentPlan, setRegPaymentPlan] = useState(1);
-  const [regPaymentMethod, setRegPaymentMethod] = useState('vipps');
+  const [regTechnicianId, setRegTechnicianId] = useState('');
+  const [regScheduledDate, setRegScheduledDate] = useState<string | null>(null);
+  const [regScheduledTime, setRegScheduledTime] = useState<string | null>(null);
   const [registering, setRegistering] = useState(false);
 
   // Book technician form
@@ -90,6 +88,9 @@ export default function FeltselgerBesokDetailPage() {
   const [technicianId, setTechnicianId] = useState('');
   const [teknikere, setTeknikere] = useState<{ id: string; name: string }[]>([]);
   const [bookingTech, setBookingTech] = useState(false);
+
+  // Kartverket auto-fetch
+  const [fetchingKartverket, setFetchingKartverket] = useState(false);
 
   const fetchVisit = useCallback(async () => {
     try {
@@ -107,6 +108,51 @@ export default function FeltselgerBesokDetailPage() {
     fetchVisit();
   }, [fetchVisit]);
 
+  const fetchKartverketUnits = async () => {
+    if (!visit) return;
+    setFetchingKartverket(true);
+    try {
+      const params = new URLSearchParams({ address: visit.organization.address });
+      const res = await fetch(`/api/kartverket/units?${params.toString()}`);
+      const data = await res.json();
+      const units: { unitNumber: string; floor: number | null }[] = data.units || [];
+
+      if (units.length === 0) {
+        toast('Ingen enheter funnet via Kartverket', { icon: 'i' });
+        return;
+      }
+
+      // Create each unit
+      let created = 0;
+      for (const unit of units) {
+        try {
+          await fetch('/api/units', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              organizationId: visit.organization.id,
+              visitId: visit.id,
+              unitNumber: unit.unitNumber,
+              floor: unit.floor,
+            }),
+          });
+          created++;
+        } catch {
+          // skip duplicates
+        }
+      }
+
+      if (created > 0) {
+        toast.success(`${created} enheter hentet fra Kartverket`);
+        fetchVisit();
+      }
+    } catch {
+      toast.error('Kunne ikke hente enheter fra Kartverket');
+    } finally {
+      setFetchingKartverket(false);
+    }
+  };
+
   const handleStartVisit = async () => {
     try {
       await fetch(`/api/visits/${id}`, {
@@ -115,7 +161,12 @@ export default function FeltselgerBesokDetailPage() {
         body: JSON.stringify({ status: 'pagaar' }),
       });
       toast.success('Besøk startet');
-      fetchVisit();
+      await fetchVisit();
+
+      // Auto-fetch units from Kartverket if none exist
+      if (visit && visit.dwellingUnits.length === 0) {
+        fetchKartverketUnits();
+      }
     } catch {
       toast.error('Kunne ikke starte besøk');
     }
@@ -180,18 +231,11 @@ export default function FeltselgerBesokDetailPage() {
     setRegResidentName(unit.residentName || '');
     setRegResidentPhone(unit.residentPhone || '');
     setRegResidentEmail(unit.residentEmail || '');
-    setRegOrderType(unit.orderType || 'ventilasjonsrens');
-    setRegProduct(unit.product || '');
-    setRegPrice(unit.price || 0);
-    setRegPaymentPlan(unit.paymentPlanMonths || 1);
-    setRegPaymentMethod(unit.paymentMethod || 'vipps');
-    // Auto-select first product if none selected
-    const ot = unit.orderType || 'ventilasjonsrens';
-    if (!unit.product && productsByOrderType[ot]?.length) {
-      const p = productsByOrderType[ot][0];
-      setRegProduct(p.name);
-      setRegPrice(p.price);
-    }
+    setRegTechnicianId(unit.technicianId || '');
+    setRegScheduledDate(unit.scheduledAt ? unit.scheduledAt.split('T')[0] : null);
+    setRegScheduledTime(unit.scheduledAt ? unit.scheduledAt.split('T')[1]?.slice(0, 5) : null);
+    // Fetch technicians for the picker
+    fetchTeknikere();
     setShowRegister(true);
   };
 
@@ -200,29 +244,77 @@ export default function FeltselgerBesokDetailPage() {
       toast.error('Fyll inn beboernavn');
       return;
     }
+    if (!regResidentPhone.trim()) {
+      toast.error('Fyll inn telefonnummer');
+      return;
+    }
+    if (!regTechnicianId) {
+      toast.error('Velg tekniker');
+      return;
+    }
+    if (!regScheduledDate || !regScheduledTime) {
+      toast.error('Velg tidspunkt');
+      return;
+    }
     setRegistering(true);
     try {
-      await fetch(`/api/units/${registerUnitId}`, {
+      const scheduledAt = `${regScheduledDate}T${regScheduledTime}:00`;
+
+      // 1. Update unit with contact info + scheduling, status → besok_booket
+      const unitRes = await fetch(`/api/units/${registerUnitId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           residentName: regResidentName.trim(),
-          residentPhone: regResidentPhone.trim() || null,
+          residentPhone: regResidentPhone.trim(),
           residentEmail: regResidentEmail.trim() || null,
-          visitStatus: 'solgt',
-          orderType: regOrderType,
-          product: regProduct,
-          price: regPrice,
-          paymentPlanMonths: regPaymentPlan > 1 ? regPaymentPlan : null,
-          paymentMethod: regPaymentMethod,
+          visitStatus: 'besok_booket',
+          scheduledAt,
+          technicianId: regTechnicianId,
           smsSent: true,
         }),
       });
-      toast.success('Enhet registrert og SMS sendt');
+      if (!unitRes.ok) {
+        const err = await unitRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Kunne ikke oppdatere enhet');
+      }
+
+      // 2. Send SMS to customer from system
+      const name = regResidentName.trim().split(' ')[0];
+      const d = new Date(regScheduledDate + 'T12:00:00');
+      const dateStr = d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' });
+      const smsMessage = `Hei ${name}! Du har fått en avtale for ventilasjonsrens ${dateStr} kl ${regScheduledTime}. Bekreft med å svare JA. Mvh Konvoi`;
+
+      await fetch('/api/sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: regResidentPhone.trim(),
+          message: smsMessage,
+        }),
+      });
+
+      // 3. Create work order for technician
+      const woRes = await fetch('/api/work-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationId: visit!.organization.id,
+          technicianId: regTechnicianId,
+          scheduledAt,
+          unitIds: [registerUnitId],
+        }),
+      });
+      if (!woRes.ok) {
+        const err = await woRes.json().catch(() => ({}));
+        console.warn('Work order feil:', err.error);
+      }
+
+      toast.success('Kunde registrert og tekniker booket');
       setShowRegister(false);
       fetchVisit();
-    } catch {
-      toast.error('Kunne ikke registrere enhet');
+    } catch (err: any) {
+      toast.error(err.message || 'Kunne ikke registrere kunde');
     } finally {
       setRegistering(false);
     }
@@ -242,7 +334,7 @@ export default function FeltselgerBesokDetailPage() {
     if (!techDate || !visit || !technicianId) return;
     setBookingTech(true);
     try {
-      const soldUnits = visit.dwellingUnits.filter((u) => u.visitStatus === 'solgt');
+      const soldUnits = visit.dwellingUnits.filter((u) => u.visitStatus === 'besok_booket' || u.visitStatus === 'solgt');
       await fetch('/api/work-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -267,11 +359,8 @@ export default function FeltselgerBesokDetailPage() {
   if (loading) return <LoadingSpinner />;
   if (!visit) return <EmptyState title="Besøk ikke funnet" description="Kunne ikke finne dette besøket" />;
 
-  const soldCount = visit.dwellingUnits.filter((u) => u.visitStatus === 'solgt').length;
+  const bookedCount = visit.dwellingUnits.filter((u) => u.visitStatus === 'besok_booket').length;
   const visitedCount = visit.dwellingUnits.filter((u) => u.visitStatus !== 'ikke_besokt').length;
-  const totalRevenue = visit.dwellingUnits
-    .filter((u) => u.visitStatus === 'solgt')
-    .reduce((sum, u) => sum + (u.price || 0), 0);
 
   return (
     <div className="page-container">
@@ -289,18 +378,14 @@ export default function FeltselgerBesokDetailPage() {
 
       {/* Info row */}
       <Card className="mb-4">
-        <div className="grid grid-cols-4 gap-3 text-center">
+        <div className="grid grid-cols-3 gap-3 text-center">
           <div>
             <p className="text-lg font-bold">{visitedCount}/{visit.dwellingUnits.length}</p>
             <p className="text-xs text-gray-500">Besøkt</p>
           </div>
           <div>
-            <p className="text-lg font-bold text-green-600">{soldCount}</p>
-            <p className="text-xs text-gray-500">Solgt</p>
-          </div>
-          <div>
-            <p className="text-lg font-bold">{formatCurrency(totalRevenue)}</p>
-            <p className="text-xs text-gray-500">Total</p>
+            <p className="text-lg font-bold text-blue-600">{bookedCount}</p>
+            <p className="text-xs text-gray-500">Booket</p>
           </div>
           <div>
             <p className="text-lg font-bold">{visit.organization.numUnits}</p>
@@ -342,7 +427,7 @@ export default function FeltselgerBesokDetailPage() {
             </Button>
           </>
         )}
-        {visit.status === 'fullfort' && soldCount > 0 && (
+        {visit.status === 'fullfort' && bookedCount > 0 && (
           <Button fullWidth onClick={() => { fetchTeknikere(); setShowBookTech(true); }}>
             <Wrench className="h-4 w-4" />
             Bestill tekniker
@@ -363,16 +448,30 @@ export default function FeltselgerBesokDetailPage() {
         )}
       </div>
 
-      {visit.dwellingUnits.length === 0 ? (
+      {fetchingKartverket && (
+        <Card className="mb-4">
+          <div className="flex items-center gap-3 py-2">
+            <LoadingSpinner />
+            <p className="text-sm text-gray-600">Henter enheter fra Kartverket...</p>
+          </div>
+        </Card>
+      )}
+
+      {visit.dwellingUnits.length === 0 && !fetchingKartverket ? (
         <EmptyState
           title="Ingen enheter"
-          description="Legg til enheter for å starte besøk"
+          description="Legg til enheter manuelt eller hent fra Kartverket"
           action={
             visit.status === 'pagaar' ? (
-              <Button size="sm" onClick={() => setShowAddUnit(true)}>
-                <Plus className="h-3.5 w-3.5" />
-                Legg til enhet
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={fetchKartverketUnits}>
+                  Hent fra Kartverket
+                </Button>
+                <Button size="sm" onClick={() => setShowAddUnit(true)}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Legg til manuelt
+                </Button>
+              </div>
             ) : undefined
           }
         />
@@ -392,9 +491,14 @@ export default function FeltselgerBesokDetailPage() {
                     <p className="text-sm font-medium">
                       {unit.residentName || `Enhet ${unit.unitNumber}`}
                     </p>
-                    {unit.floor != null && (
+                    {unit.visitStatus === 'besok_booket' && unit.scheduledAt ? (
+                      <p className="text-xs text-green-600">
+                        <Check className="h-3 w-3 inline mr-0.5" />
+                        Booket {formatDate(unit.scheduledAt)} kl. {formatTime(unit.scheduledAt)}
+                      </p>
+                    ) : unit.floor != null ? (
                       <p className="text-xs text-gray-400">{unit.floor}. etasje</p>
-                    )}
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -421,16 +525,12 @@ export default function FeltselgerBesokDetailPage() {
                       <a href={`tel:${unit.residentPhone}`} className="underline">{unit.residentPhone}</a>
                     </div>
                   )}
-                  {unit.visitStatus === 'solgt' && unit.product && (
+                  {(unit.visitStatus === 'besok_booket' || unit.visitStatus === 'solgt') && unit.scheduledAt && (
                     <div className="bg-green-50 rounded-lg p-2 mb-2 text-xs">
-                      <span className="font-medium">{unit.orderType === 'service' ? 'Service' : 'Ventilasjonsrens'}: {unit.product}</span>
-                      <span className="float-right font-bold">{formatCurrency(unit.price || 0)}</span>
-                      {unit.paymentPlanMonths && unit.paymentPlanMonths > 1 && (
-                        <p className="text-gray-600 mt-0.5">
-                          {formatCurrency(Math.ceil((unit.price || 0) / unit.paymentPlanMonths))}/mnd i {unit.paymentPlanMonths} mnd
-                        </p>
-                      )}
-                      <p className="text-gray-500 mt-0.5">Betaling: {unit.paymentMethod === 'vipps' ? 'Vipps' : unit.paymentMethod === 'faktura' ? 'Faktura' : 'Kontant'}</p>
+                      <span className="font-medium">
+                        <Clock className="h-3.5 w-3.5 inline mr-1" />
+                        Avtale: {formatDate(unit.scheduledAt)} kl. {formatTime(unit.scheduledAt)}
+                      </span>
                     </div>
                   )}
                   {unit.notes && (
@@ -439,11 +539,11 @@ export default function FeltselgerBesokDetailPage() {
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      variant={unit.visitStatus === 'solgt' ? 'primary' : 'secondary'}
+                      variant={unit.visitStatus === 'besok_booket' ? 'primary' : 'secondary'}
                       onClick={() => openRegisterModal(unit)}
                     >
-                      <ShoppingCart className="h-3.5 w-3.5" />
-                      {unit.visitStatus === 'solgt' ? 'Endre' : 'Registrer salg'}
+                      <User className="h-3.5 w-3.5" />
+                      {unit.visitStatus === 'besok_booket' ? 'Endre' : 'Registrer kunde'}
                     </Button>
                     <Button
                       size="sm"
@@ -490,7 +590,7 @@ export default function FeltselgerBesokDetailPage() {
       </Modal>
 
       {/* Register unit modal */}
-      <Modal isOpen={showRegister} onClose={() => setShowRegister(false)} title="Registrer enhet" size="lg">
+      <Modal isOpen={showRegister} onClose={() => setShowRegister(false)} title="Registrer kunde" size="lg">
         <div className="space-y-4">
           <Input
             label="Beboernavn *"
@@ -500,7 +600,7 @@ export default function FeltselgerBesokDetailPage() {
           />
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Telefon"
+              label="Telefon *"
               type="tel"
               placeholder="Telefonnummer"
               value={regResidentPhone}
@@ -515,114 +615,41 @@ export default function FeltselgerBesokDetailPage() {
             />
           </div>
 
-          {/* Order type */}
+          {/* Technician selector */}
           <div>
-            <label className="label">Ordretype</label>
-            <div className="flex gap-2">
-              {['ventilasjonsrens', 'service'].map((ot) => (
-                <button
-                  key={ot}
-                  onClick={() => {
-                    setRegOrderType(ot);
-                    const products = productsByOrderType[ot] || [];
-                    if (products.length) {
-                      setRegProduct(products[0].name);
-                      setRegPrice(products[0].price);
-                    }
-                  }}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-                    regOrderType === ot
-                      ? 'bg-black text-white'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {ot === 'ventilasjonsrens' ? 'Ventilasjonsrens' : 'Service'}
-                </button>
+            <label className="label">Tekniker</label>
+            <select
+              value={regTechnicianId}
+              onChange={(e) => setRegTechnicianId(e.target.value)}
+              className="input-field w-full"
+            >
+              <option value="">Velg tekniker</option>
+              {teknikere.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
-            </div>
+            </select>
           </div>
 
-          {/* Product selection */}
-          <div>
-            <label className="label">Produkt</label>
-            <div className="grid grid-cols-3 gap-2">
-              {(productsByOrderType[regOrderType] || []).map((p) => (
-                <button
-                  key={p.name}
-                  onClick={() => { setRegProduct(p.name); setRegPrice(p.price); }}
-                  className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                    regProduct === p.name
-                      ? 'bg-black text-white'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <span className="text-sm font-medium block">{p.label}</span>
-                  <span className="text-xs block mt-0.5">{formatCurrency(p.price)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Payment plan */}
-          <div>
-            <label className="label">Betalingsplan</label>
-            <div className="flex gap-2">
-              {paymentPlanOptions.map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setRegPaymentPlan(m)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-                    regPaymentPlan === m
-                      ? 'bg-black text-white'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {m === 1 ? 'Fullt' : `${m} mnd`}
-                </button>
-              ))}
-            </div>
-            {regPaymentPlan > 1 && regPrice > 0 && (
-              <p className="text-xs text-gray-500 mt-1">
-                {formatCurrency(Math.ceil(regPrice / regPaymentPlan))}/mnd i {regPaymentPlan} mnd
-              </p>
-            )}
-          </div>
-
-          {/* Payment method */}
-          <div>
-            <label className="label">Betalingsmåte</label>
-            <div className="flex gap-2">
-              {[
-                { id: 'vipps', label: 'Vipps' },
-                { id: 'faktura', label: 'Faktura' },
-                { id: 'kontant', label: 'Kontant' },
-              ].map((pm) => (
-                <button
-                  key={pm.id}
-                  onClick={() => setRegPaymentMethod(pm.id)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-                    regPaymentMethod === pm.id
-                      ? 'bg-black text-white'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {pm.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Summary */}
-          <div className="bg-gray-50 rounded-xl p-3">
-            <div className="flex justify-between text-sm">
-              <span>{regProduct || 'Velg produkt'}</span>
-              <span className="font-bold">{formatCurrency(regPrice)}</span>
-            </div>
-          </div>
+          {/* Available time slots */}
+          {regTechnicianId ? (
+            <AvailableSlotPicker
+              userId={regTechnicianId}
+              onSelect={(date, time) => {
+                setRegScheduledDate(date);
+                setRegScheduledTime(time);
+              }}
+              selectedDate={regScheduledDate}
+              selectedTime={regScheduledTime}
+            />
+          ) : (
+            <p className="text-sm text-gray-400 text-center py-4">
+              Velg tekniker for å se ledige tider
+            </p>
+          )}
 
           <Button fullWidth onClick={handleRegisterUnit} isLoading={registering}>
-            <CheckCircle className="h-4 w-4" />
-            Registrer og send SMS
+            <MessageSquare className="h-4 w-4" />
+            Registrer kunde
           </Button>
         </div>
       </Modal>
@@ -631,7 +658,7 @@ export default function FeltselgerBesokDetailPage() {
       <Modal isOpen={showBookTech} onClose={() => setShowBookTech(false)} title="Bestill tekniker">
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            {soldCount} enheter er solgt og klare for rens. Total: {formatCurrency(totalRevenue)}
+            {bookedCount} enheter er booket og klare for rens.
           </p>
           <div>
             <label className="label">Tekniker</label>
@@ -646,12 +673,18 @@ export default function FeltselgerBesokDetailPage() {
               ))}
             </select>
           </div>
-          <Input
-            label="Ønsket dato og tid"
-            type="datetime-local"
-            value={techDate}
-            onChange={(e) => setTechDate(e.target.value)}
-          />
+          {technicianId ? (
+            <AvailableSlotPicker
+              userId={technicianId}
+              onSelect={(date, time) => setTechDate(`${date}T${time}:00`)}
+              selectedDate={techDate ? techDate.split('T')[0] : null}
+              selectedTime={techDate ? techDate.split('T')[1]?.slice(0, 5) : null}
+            />
+          ) : (
+            <p className="text-sm text-gray-400 text-center py-4">
+              Velg tekniker for å se ledige tider
+            </p>
+          )}
           <Button fullWidth onClick={handleBookTechnician} isLoading={bookingTech} disabled={!technicianId || !techDate}>
             <Wrench className="h-4 w-4" />
             Bestill tekniker

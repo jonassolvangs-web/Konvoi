@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, MapPin, Clock, Play, CheckCircle, Square, CheckSquare,
-  Wind, CreditCard, PenTool, Building2, Trash2, Edit3,
+  Wind, CreditCard, PenTool, Building2, Trash2, Edit3, Camera, Send,
+  Image as ImageIcon,
 } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
@@ -24,6 +25,14 @@ interface ChecklistItem {
   checked: boolean;
 }
 
+function parseChecklist(raw: any): ChecklistItem[] {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch { return []; }
+  }
+  return [];
+}
+
 interface WorkOrderUnit {
   id: string;
   orderType: string;
@@ -35,6 +44,9 @@ interface WorkOrderUnit {
   airAfter: number | null;
   paymentMethod: string | null;
   paymentStatus: string;
+  photoBeforeUrl: string | null;
+  photoAfterUrl: string | null;
+  reportSentAt: string | null;
   notes: string | null;
   originalOrderType: string | null;
   originalProduct: string | null;
@@ -45,6 +57,7 @@ interface WorkOrderUnit {
     floor: number | null;
     residentName: string | null;
     residentPhone: string | null;
+    residentEmail: string | null;
   };
   product: {
     name: string;
@@ -96,6 +109,12 @@ export default function TeknikerOppdragDetailPage() {
   const [changePrice, setChangePrice] = useState(0);
   const [changingOrder, setChangingOrder] = useState(false);
   const [changeOriginal, setChangeOriginal] = useState({ orderType: '', product: '', price: 0 });
+  const [changePaymentPlan, setChangePaymentPlan] = useState(0);
+  const [changePaymentMethod, setChangePaymentMethod] = useState('faktura');
+
+  // Photo upload state
+  const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null); // 'before-{unitId}' | 'after-{unitId}'
+  const [sendingReport, setSendingReport] = useState<string | null>(null); // unitId
 
   // Signature canvas
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -195,6 +214,8 @@ export default function TeknikerOppdragDetailPage() {
     setChangeOrderType(unit.orderType);
     setChangeProduct(unit.productName || '');
     setChangePrice(unit.price);
+    setChangePaymentPlan(unit.paymentPlanMonths || 0);
+    setChangePaymentMethod(unit.paymentMethod || 'faktura');
     setChangeOriginal({
       orderType: unit.originalOrderType || unit.orderType,
       product: unit.originalProduct || unit.productName || '',
@@ -206,6 +227,11 @@ export default function TeknikerOppdragDetailPage() {
   const handleChangeOrder = async () => {
     setChangingOrder(true);
     try {
+      const statusMap: Record<string, string> = {
+        vipps: 'vipps_sendt',
+        faktura: 'faktura_sendt',
+        kontant: 'betalt',
+      };
       await fetch(`/api/work-orders/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -214,16 +240,19 @@ export default function TeknikerOppdragDetailPage() {
           orderType: changeOrderType,
           productName: changeProduct,
           price: changePrice,
+          paymentPlanMonths: changePaymentPlan || null,
+          paymentMethod: changePaymentMethod,
+          paymentStatus: statusMap[changePaymentMethod] || 'ikke_betalt',
           originalOrderType: changeOriginal.orderType,
           originalProduct: changeOriginal.product,
           originalPrice: changeOriginal.price,
         }),
       });
-      toast.success('Ordre endret');
+      toast.success('Produkt bekreftet');
       setShowChangeOrder(false);
       fetchWorkOrder();
     } catch {
-      toast.error('Kunne ikke endre ordre');
+      toast.error('Kunne ikke bekrefte produkt');
     } finally {
       setChangingOrder(false);
     }
@@ -270,6 +299,78 @@ export default function TeknikerOppdragDetailPage() {
       toast.error('Kunne ikke opprette filteravtale');
     } finally {
       setSavingFilterSub(false);
+    }
+  };
+
+  const handlePhotoUpload = async (unitId: string, type: 'before' | 'after', file: File) => {
+    const key = `${type}-${unitId}`;
+    setUploadingPhoto(key);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', type);
+      formData.append('unitId', unitId);
+
+      const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+      const { url, error } = await uploadRes.json();
+      if (error) throw new Error(error);
+
+      // Save URL to unit
+      await fetch(`/api/work-orders/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unitId,
+          [type === 'before' ? 'photoBeforeUrl' : 'photoAfterUrl']: url,
+        }),
+      });
+      toast.success(`${type === 'before' ? 'Før' : 'Etter'}-bilde lastet opp`);
+      fetchWorkOrder();
+    } catch {
+      toast.error('Kunne ikke laste opp bilde');
+    } finally {
+      setUploadingPhoto(null);
+    }
+  };
+
+  const handleSendReport = async (unit: WorkOrderUnit) => {
+    setSendingReport(unit.id);
+    try {
+      if (!workOrder) return;
+      const { generateReportHtml } = await import('@/lib/report');
+      const baseUrl = window.location.origin;
+      const html = generateReportHtml({
+        organizationName: workOrder.organization.name,
+        organizationAddress: workOrder.organization.address,
+        technicianName: workOrder.technician.name,
+        completedDate: new Date().toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }),
+        units: [unit],
+      }, baseUrl);
+
+      const email = unit.dwellingUnit.residentEmail;
+      await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: email || 'ingen-epost@placeholder.no',
+          subject: `Rapport – Ventilasjonsrens ${workOrder.organization.name}`,
+          html,
+        }),
+      });
+
+      // Mark report as sent on unit
+      await fetch(`/api/work-orders/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unitId: unit.id, reportSentAt: new Date().toISOString() }),
+      });
+
+      toast.success(email ? `Rapport sendt til ${email}` : 'Rapport sendt (ingen e-post registrert)');
+      fetchWorkOrder();
+    } catch {
+      toast.error('Kunne ikke sende rapport');
+    } finally {
+      setSendingReport(null);
     }
   };
 
@@ -362,11 +463,11 @@ export default function TeknikerOppdragDetailPage() {
 
   const totalPrice = workOrder.units.reduce((sum, u) => sum + u.price, 0);
   const completedChecks = workOrder.units.reduce((sum, u) => {
-    const cl = (u.checklist || []) as ChecklistItem[];
+    const cl = parseChecklist(u.checklist);
     return sum + cl.filter((i) => i.checked).length;
   }, 0);
   const totalChecks = workOrder.units.reduce((sum, u) => {
-    const cl = (u.checklist || []) as ChecklistItem[];
+    const cl = parseChecklist(u.checklist);
     return sum + cl.length;
   }, 0);
 
@@ -396,7 +497,7 @@ export default function TeknikerOppdragDetailPage() {
             <p className="text-xs text-gray-500">Sjekkliste</p>
           </div>
           <div>
-            <p className="text-lg font-bold">{formatCurrency(totalPrice)}</p>
+            <p className="text-lg font-bold">{totalPrice > 0 ? formatCurrency(totalPrice) : '–'}</p>
             <p className="text-xs text-gray-500">Total</p>
           </div>
         </div>
@@ -431,7 +532,7 @@ export default function TeknikerOppdragDetailPage() {
       <div className="space-y-3">
         {workOrder.units.map((unit) => {
           const isActive = activeUnit === unit.id;
-          const checklist = (unit.checklist || []) as ChecklistItem[];
+          const checklist = parseChecklist(unit.checklist);
           const checked = checklist.filter((i) => i.checked).length;
 
           return (
@@ -451,14 +552,25 @@ export default function TeknikerOppdragDetailPage() {
                         {unit.dwellingUnit.residentName || `Enhet ${unit.dwellingUnit.unitNumber}`}
                       </p>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">
-                          {unit.productName || unit.product?.name || unit.orderType}
-                        </span>
-                        <span className="text-xs font-medium">{formatCurrency(unit.price)}</span>
-                        {unit.paymentPlanMonths && unit.paymentPlanMonths > 1 && (
-                          <span className="text-[10px] text-gray-400">
-                            ({unit.paymentPlanMonths} mnd)
-                          </span>
+                        {unit.productName || unit.product?.name ? (
+                          <>
+                            <span className="text-xs text-gray-500">
+                              {unit.productName || unit.product?.name}
+                            </span>
+                            <span className="text-xs font-medium">{formatCurrency(unit.price)}</span>
+                            {unit.paymentPlanMonths != null && unit.paymentPlanMonths > 0 && (
+                              <span className="text-[10px] text-gray-400">
+                                {unit.paymentPlanMonths} mnd
+                              </span>
+                            )}
+                            {unit.paymentMethod && (
+                              <span className="text-[10px] text-gray-400 capitalize">
+                                {unit.paymentMethod}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-xs text-orange-500 font-medium">Velg produkt</span>
                         )}
                       </div>
                       {unit.originalPrice != null && unit.originalPrice !== unit.price && (
@@ -485,129 +597,355 @@ export default function TeknikerOppdragDetailPage() {
               {/* Expanded content */}
               {isActive && workOrder.status === 'pagaar' && (
                 <div className="border-t border-gray-100 p-4 space-y-4">
-                  {/* Checklist */}
-                  <div>
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                      <CheckSquare className="h-3.5 w-3.5 inline mr-1" />
-                      Sjekkliste
-                    </h4>
-                    <div className="space-y-1.5">
-                      {checklist.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => handleToggleChecklist(unit.id, checklist, item.id)}
-                          className="flex items-center gap-2 w-full text-left py-1"
-                        >
-                          {item.checked ? (
-                            <CheckSquare className="h-4 w-4 text-green-600 flex-shrink-0" />
-                          ) : (
-                            <Square className="h-4 w-4 text-gray-300 flex-shrink-0" />
-                          )}
-                          <span className={cn(
-                            'text-sm',
-                            item.checked && 'text-gray-400 line-through'
-                          )}>
-                            {item.label}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Air measurements */}
-                  <div>
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                      <Wind className="h-3.5 w-3.5 inline mr-1" />
-                      Luftmålinger
-                    </h4>
-                    <div className="flex gap-2 items-end">
-                      <Input
-                        label="For (l/s)"
-                        type="number"
-                        placeholder={unit.airBefore?.toString() || '0'}
-                        value={airBefore}
-                        onChange={(e) => setAirBefore(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Input
-                        label="Etter (l/s)"
-                        type="number"
-                        placeholder={unit.airAfter?.toString() || '0'}
-                        value={airAfter}
-                        onChange={(e) => setAirAfter(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button size="sm" onClick={() => handleSaveAir(unit.id)}>
-                        Lagre
-                      </Button>
-                    </div>
-                    {unit.airBefore != null && unit.airAfter != null && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-xs text-gray-500">
-                          For: {unit.airBefore} l/s | Etter: {unit.airAfter} l/s
-                        </span>
-                        {unit.airAfter > unit.airBefore && (
-                          <Badge color="bg-green-100 text-green-700" size="sm">
-                            +{Math.round(((unit.airAfter - unit.airBefore) / unit.airBefore) * 100)}%
-                          </Badge>
-                        )}
+                  {/* Product selection - shown prominently when no product chosen */}
+                  {!unit.productName && !unit.product?.name ? (
+                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
+                      <h4 className="text-sm font-semibold text-orange-800">
+                        Velg produkt for denne enheten
+                      </h4>
+                      <div>
+                        <label className="text-xs font-medium text-gray-600 mb-1.5 block">Ordretype</label>
+                        <div className="flex gap-2">
+                          {['ventilasjonsrens', 'service'].map((ot) => (
+                            <button
+                              key={ot}
+                              onClick={() => {
+                                setChangeUnitId(unit.id);
+                                setChangeOrderType(ot);
+                                const products = productsByOrderType[ot] || [];
+                                if (products.length) {
+                                  setChangeProduct(products[0].name);
+                                  setChangePrice(products[0].price);
+                                }
+                              }}
+                              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
+                                changeUnitId === unit.id && changeOrderType === ot ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+                              }`}
+                            >
+                              {ot === 'ventilasjonsrens' ? 'Ventilasjonsrens' : 'Service'}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    )}
-                  </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-600 mb-1.5 block">Produkt</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(productsByOrderType[changeUnitId === unit.id ? changeOrderType : 'ventilasjonsrens'] || []).map((p) => (
+                            <button
+                              key={p.name}
+                              onClick={() => {
+                                setChangeUnitId(unit.id);
+                                setChangeProduct(p.name);
+                                setChangePrice(p.price);
+                              }}
+                              className={`py-3 px-2 rounded-xl text-center transition-colors ${
+                                changeUnitId === unit.id && changeProduct === p.name ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+                              }`}
+                            >
+                              <span className="text-sm font-medium block">{p.label}</span>
+                              <span className="text-xs block mt-0.5">{formatCurrency(p.price)}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Nedbetaling */}
+                      <div>
+                        <label className="text-xs font-medium text-gray-600 mb-1.5 block">Nedbetaling</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {paymentPlanOptions.map((months) => {
+                            const price = changeUnitId === unit.id ? changePrice : 0;
+                            const monthlyAmount = months > 0 ? Math.ceil(price / months) : price;
+                            return (
+                              <button
+                                key={months}
+                                onClick={() => {
+                                  setChangeUnitId(unit.id);
+                                  setChangePaymentPlan(months);
+                                }}
+                                className={`py-3 px-2 rounded-xl text-center transition-colors ${
+                                  changeUnitId === unit.id && changePaymentPlan === months ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+                                }`}
+                              >
+                                <span className="text-sm font-medium block">{months === 0 ? 'Fullt' : `${months} mnd`}</span>
+                                <span className="text-xs block mt-0.5">
+                                  {months === 0 ? formatCurrency(price) : `${formatCurrency(monthlyAmount)}/mnd`}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
 
-                  {/* Change order */}
-                  <div>
-                    <Button size="sm" variant="secondary" onClick={() => openChangeOrder(unit)}>
-                      <Edit3 className="h-3.5 w-3.5" />
-                      Endre ordre
-                    </Button>
-                  </div>
+                      {/* Betalingsmåte */}
+                      <div>
+                        <label className="text-xs font-medium text-gray-600 mb-1.5 block">Betaling</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {['faktura', 'vipps'].map((method) => (
+                            <button
+                              key={method}
+                              onClick={() => {
+                                setChangeUnitId(unit.id);
+                                setChangePaymentMethod(method);
+                              }}
+                              className={`py-3 px-2 rounded-xl text-center transition-colors ${
+                                changeUnitId === unit.id && changePaymentMethod === method ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+                              }`}
+                            >
+                              <span className="text-sm font-medium">{method === 'faktura' ? 'Faktura' : 'Vipps'}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                  {/* Payment */}
-                  <div>
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                      <CreditCard className="h-3.5 w-3.5 inline mr-1" />
-                      Betaling - {formatCurrency(unit.price)}
-                      {unit.paymentPlanMonths && unit.paymentPlanMonths > 1 && (
-                        <span className="normal-case font-normal"> ({formatCurrency(Math.ceil(unit.price / unit.paymentPlanMonths))}/mnd × {unit.paymentPlanMonths})</span>
-                      )}
-                    </h4>
-                    <div className="flex gap-2">
                       <Button
                         size="sm"
-                        variant={unit.paymentMethod === 'vipps' ? 'primary' : 'secondary'}
-                        onClick={() => handlePayment(unit.id, 'vipps')}
+                        fullWidth
+                        disabled={!changeProduct || changeUnitId !== unit.id}
+                        onClick={() => {
+                          setChangeOriginal({ orderType: unit.orderType, product: '', price: 0 });
+                          handleChangeOrder();
+                        }}
                       >
-                        Vipps
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={unit.paymentMethod === 'faktura' ? 'primary' : 'secondary'}
-                        onClick={() => handlePayment(unit.id, 'faktura')}
-                      >
-                        Faktura
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={unit.paymentMethod === 'kontant' ? 'primary' : 'secondary'}
-                        onClick={() => handlePayment(unit.id, 'kontant')}
-                      >
-                        Kontant
+                        Bekreft produkt
                       </Button>
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      {/* Payment summary + change order button */}
+                      <div className="flex items-start justify-between">
+                        <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-1 flex-1">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Produkt</span>
+                            <span className="font-medium">{unit.productName || unit.product?.name}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Beløp</span>
+                            <span className="font-medium">{formatCurrency(unit.price)}</span>
+                          </div>
+                          {unit.paymentPlanMonths != null && unit.paymentPlanMonths > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Nedbetaling</span>
+                              <span>{unit.paymentPlanMonths} mnd ({formatCurrency(Math.ceil(unit.price / unit.paymentPlanMonths))}/mnd)</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Betaling</span>
+                            <span className="capitalize">{unit.paymentMethod || '–'}</span>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="ghost" className="ml-2" onClick={() => openChangeOrder(unit)}>
+                          <Edit3 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
 
-                  {/* Complete unit */}
-                  <div className="pt-2 border-t border-gray-100">
-                    <Button
-                      size="sm"
-                      fullWidth
-                      onClick={() => handleCompleteUnit(unit.id)}
-                    >
-                      <CheckCircle className="h-3.5 w-3.5" />
-                      Fullfør enhet
-                    </Button>
-                  </div>
+                      {/* ── RAPPORT ── */}
+                      <div className="border-t border-gray-200 pt-3">
+                        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Rapport</h4>
+
+                        {/* Checklist */}
+                        <div className="mb-4">
+                          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                            <CheckSquare className="h-3.5 w-3.5 inline mr-1" />
+                            Sjekkliste
+                          </h4>
+                          <div className="space-y-1.5">
+                            {checklist.map((item) => (
+                              <button
+                                key={item.id}
+                                onClick={() => handleToggleChecklist(unit.id, checklist, item.id)}
+                                className="flex items-center gap-2 w-full text-left py-1"
+                              >
+                                {item.checked ? (
+                                  <CheckSquare className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                ) : (
+                                  <Square className="h-4 w-4 text-gray-300 flex-shrink-0" />
+                                )}
+                                <span className={cn(
+                                  'text-sm',
+                                  item.checked && 'text-gray-400 line-through'
+                                )}>
+                                  {item.label}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Air measurements */}
+                        <div className="mb-4">
+                          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                            <Wind className="h-3.5 w-3.5 inline mr-1" />
+                            Luftmålinger
+                          </h4>
+                          <div className="flex gap-2 items-end">
+                            <Input
+                              label="Før (l/s)"
+                              type="number"
+                              placeholder={unit.airBefore?.toString() || '0'}
+                              value={airBefore}
+                              onChange={(e) => setAirBefore(e.target.value)}
+                              className="flex-1"
+                            />
+                            <Input
+                              label="Etter (l/s)"
+                              type="number"
+                              placeholder={unit.airAfter?.toString() || '0'}
+                              value={airAfter}
+                              onChange={(e) => setAirAfter(e.target.value)}
+                              className="flex-1"
+                            />
+                            <Button size="sm" onClick={() => handleSaveAir(unit.id)}>
+                              Lagre
+                            </Button>
+                          </div>
+                          {unit.airBefore != null && unit.airAfter != null && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <span className="text-xs text-gray-500">
+                                Før: {unit.airBefore} l/s | Etter: {unit.airAfter} l/s
+                              </span>
+                              {unit.airAfter > unit.airBefore && (
+                                <Badge color="bg-green-100 text-green-700" size="sm">
+                                  +{Math.round(((unit.airAfter - unit.airBefore) / unit.airBefore) * 100)}%
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Photo upload */}
+                        <div className="mb-4">
+                          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                            <Camera className="h-3.5 w-3.5 inline mr-1" />
+                            Dokumentasjon
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            {/* Before photo */}
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Før-bilde</p>
+                              {unit.photoBeforeUrl ? (
+                                <div className="relative">
+                                  <img
+                                    src={unit.photoBeforeUrl}
+                                    alt="Før"
+                                    className="w-full h-28 object-cover rounded-xl border border-gray-200"
+                                  />
+                                  <div className="flex gap-1 mt-1">
+                                    <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
+                                      Ta nytt
+                                      <input type="file" accept="image/*" capture="environment" className="hidden"
+                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
+                                    </label>
+                                    <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
+                                      Last opp
+                                      <input type="file" accept="image/*" className="hidden"
+                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
+                                    </label>
+                                  </div>
+                                </div>
+                              ) : uploadingPhoto === `before-${unit.id}` ? (
+                                <div className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
+                                  <span className="text-xs text-blue-500">Laster opp...</span>
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
+                                    <Camera className="h-4 w-4 text-gray-400" />
+                                    <span className="text-xs text-gray-500">Ta bilde</span>
+                                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
+                                  </label>
+                                  <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
+                                    <ImageIcon className="h-4 w-4 text-gray-400" />
+                                    <span className="text-xs text-gray-500">Kamerarull</span>
+                                    <input type="file" accept="image/*" className="hidden"
+                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
+                                  </label>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* After photo */}
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Etter-bilde</p>
+                              {unit.photoAfterUrl ? (
+                                <div className="relative">
+                                  <img
+                                    src={unit.photoAfterUrl}
+                                    alt="Etter"
+                                    className="w-full h-28 object-cover rounded-xl border border-gray-200"
+                                  />
+                                  <div className="flex gap-1 mt-1">
+                                    <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
+                                      Ta nytt
+                                      <input type="file" accept="image/*" capture="environment" className="hidden"
+                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
+                                    </label>
+                                    <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
+                                      Last opp
+                                      <input type="file" accept="image/*" className="hidden"
+                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
+                                    </label>
+                                  </div>
+                                </div>
+                              ) : uploadingPhoto === `after-${unit.id}` ? (
+                                <div className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
+                                  <span className="text-xs text-blue-500">Laster opp...</span>
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
+                                    <Camera className="h-4 w-4 text-gray-400" />
+                                    <span className="text-xs text-gray-500">Ta bilde</span>
+                                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
+                                  </label>
+                                  <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
+                                    <ImageIcon className="h-4 w-4 text-gray-400" />
+                                    <span className="text-xs text-gray-500">Kamerarull</span>
+                                    <input type="file" accept="image/*" className="hidden"
+                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
+                                  </label>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Send report */}
+                        <div className="mb-3">
+                          {unit.reportSentAt ? (
+                            <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700 flex items-center gap-2">
+                              <CheckCircle className="h-4 w-4" />
+                              Rapport sendt {new Date(unit.reportSentAt).toLocaleDateString('nb-NO')}
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              fullWidth
+                              variant="secondary"
+                              onClick={() => handleSendReport(unit)}
+                              isLoading={sendingReport === unit.id}
+                            >
+                              <Send className="h-3.5 w-3.5" />
+                              Send rapport til kunde
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Complete unit */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <Button
+                          size="sm"
+                          fullWidth
+                          onClick={() => handleCompleteUnit(unit.id)}
+                        >
+                          <CheckCircle className="h-3.5 w-3.5" />
+                          Fullfør enhet
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </Card>
@@ -699,6 +1037,48 @@ export default function TeknikerOppdragDetailPage() {
             </div>
           </div>
 
+          {/* Nedbetaling */}
+          <div>
+            <label className="label">Nedbetaling</label>
+            <div className="grid grid-cols-3 gap-2">
+              {paymentPlanOptions.map((months) => {
+                const monthlyAmount = months > 0 ? Math.ceil(changePrice / months) : changePrice;
+                return (
+                  <button
+                    key={months}
+                    onClick={() => setChangePaymentPlan(months)}
+                    className={`py-3 px-2 rounded-xl text-center transition-colors ${
+                      changePaymentPlan === months ? 'bg-black text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="text-sm font-medium block">{months === 0 ? 'Fullt' : `${months} mnd`}</span>
+                    <span className="text-xs block mt-0.5">
+                      {months === 0 ? formatCurrency(changePrice) : `${formatCurrency(monthlyAmount)}/mnd`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Betalingsmåte */}
+          <div>
+            <label className="label">Betaling</label>
+            <div className="grid grid-cols-2 gap-2">
+              {['faktura', 'vipps'].map((method) => (
+                <button
+                  key={method}
+                  onClick={() => setChangePaymentMethod(method)}
+                  className={`py-3 px-2 rounded-xl text-center transition-colors ${
+                    changePaymentMethod === method ? 'bg-black text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="text-sm font-medium">{method === 'faktura' ? 'Faktura' : 'Vipps'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {changeOriginal.price !== changePrice && (
             <div className="bg-orange-50 rounded-xl p-3 text-sm">
               <p>Opprinnelig: {changeOriginal.product} {formatCurrency(changeOriginal.price)}</p>
@@ -743,7 +1123,7 @@ export default function TeknikerOppdragDetailPage() {
           <div className="border-t border-gray-100 pt-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium">Totalt</span>
-              <span className="text-lg font-bold">{formatCurrency(totalPrice)}</span>
+              <span className="text-lg font-bold">{totalPrice > 0 ? formatCurrency(totalPrice) : '–'}</span>
             </div>
             <Button fullWidth onClick={handleComplete} isLoading={completing}>
               <CheckCircle className="h-4 w-4" />

@@ -598,6 +598,34 @@ async function main() {
 
   console.log('Created notifications');
 
+  // ─── Availability ──────────────────────────────────
+
+  // Erik (Feltselger): Mon-Fri 08:00-16:00
+  for (let dow = 1; dow <= 5; dow++) {
+    await prisma.availability.create({
+      data: {
+        userId: erik.id,
+        dayOfWeek: dow,
+        startTime: '08:00',
+        endTime: '16:00',
+      },
+    });
+  }
+
+  // Lars (Tekniker): Mon-Fri 07:00-17:00
+  for (let dow = 1; dow <= 5; dow++) {
+    await prisma.availability.create({
+      data: {
+        userId: lars.id,
+        dayOfWeek: dow,
+        startTime: '07:00',
+        endTime: '17:00',
+      },
+    });
+  }
+
+  console.log('Created availability templates');
+
   console.log('Seeding complete!');
 }
 

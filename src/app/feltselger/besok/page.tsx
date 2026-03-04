@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Building2, Clock } from 'lucide-react';
+import { MapPin, Building2, Clock, Loader2 } from 'lucide-react';
 import Tabs from '@/components/ui/tabs';
 import Card from '@/components/ui/card';
 import StatusBadge from '@/components/ui/status-badge';
@@ -70,6 +70,7 @@ export default function FeltselgerBesokPage() {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creatingVisit, setCreatingVisit] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -114,14 +115,51 @@ export default function FeltselgerBesokPage() {
 
   if (loading) return <LoadingSpinner />;
 
+  const handleAppointmentClick = async (apt: Appointment) => {
+    // Check if a visit already exists for this appointment
+    const existingVisit = visits.find(
+      (v) => v.appointment && new Date(v.appointment.scheduledAt).getTime() === new Date(apt.scheduledAt).getTime()
+        && v.organization.id === apt.organization.id
+    );
+
+    if (existingVisit) {
+      router.push(`/feltselger/besok/${existingVisit.id}`);
+      return;
+    }
+
+    // Create a new visit from the appointment
+    setCreatingVisit(apt.id);
+    try {
+      const res = await fetch('/api/visits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationId: apt.organization.id,
+          appointmentId: apt.id,
+          source: 'booking',
+        }),
+      });
+      const data = await res.json();
+      if (data.visit?.id) {
+        router.push(`/feltselger/besok/${data.visit.id}`);
+      }
+    } catch {
+      // Fallback: reload and try again
+      setCreatingVisit(null);
+    }
+  };
+
   const renderAppointmentCard = (apt: Appointment) => (
-    <Card key={`apt-${apt.id}`} hover onClick={() => router.push(`/feltselger/besok`)}>
+    <Card key={`apt-${apt.id}`} hover onClick={() => handleAppointmentClick(apt)}>
       <div className="flex items-start justify-between mb-2">
         <div>
           <p className="text-xs text-gray-400 font-medium mb-0.5">Avtale</p>
           <h3 className="text-sm font-semibold">{apt.organization.name}</h3>
         </div>
-        <StatusBadge type="appointment" status={apt.status} />
+        <div className="flex items-center gap-2">
+          {creatingVisit === apt.id && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
+          <StatusBadge type="appointment" status={apt.status} />
+        </div>
       </div>
 
       <div className="space-y-1">

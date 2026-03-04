@@ -65,13 +65,6 @@ export default function LoginPage() {
             Logg inn
           </Button>
         </form>
-
-        <div className="mt-6 pt-4 border-t border-gray-100">
-          <p className="text-xs text-gray-400 text-center">
-            Testbrukere: admin@konvoi.no / mari@konvoi.no / erik@konvoi.no
-          </p>
-          <p className="text-xs text-gray-400 text-center">Passord: password123</p>
-        </div>
       </div>
     </div>
   );

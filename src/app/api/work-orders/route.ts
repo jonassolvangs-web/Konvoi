@@ -63,13 +63,13 @@ export async function POST(req: NextRequest) {
     }
     const { organizationId, technicianId, scheduledAt, unitIds } = parsed.data;
 
-    // Get sold dwelling units
+    // Get dwelling units (sold or booked)
     const units = await prisma.dwellingUnit.findMany({
-      where: { id: { in: unitIds }, visitStatus: 'solgt' },
+      where: { id: { in: unitIds }, visitStatus: { in: ['solgt', 'besok_booket'] } },
     });
 
     if (units.length === 0) {
-      return NextResponse.json({ error: 'Ingen solgte enheter funnet' }, { status: 400 });
+      return NextResponse.json({ error: 'Ingen registrerte enheter funnet' }, { status: 400 });
     }
 
     const workOrder = await prisma.$transaction(async (tx) => {
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Create work order units - copy data from dwelling units
+      // Create work order units - technician fills in product/price later
       for (const unit of units) {
         await tx.workOrderUnit.create({
           data: {
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
             dwellingUnitId: unit.id,
             orderType: unit.orderType || 'ventilasjonsrens',
             productName: unit.product || null,
-            price: unit.price || 3990,
+            price: unit.price || 0,
             paymentMethod: unit.paymentMethod || null,
             paymentPlanMonths: unit.paymentPlanMonths || null,
             checklist: JSON.stringify(defaultChecklist),
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
           channelId: organizationId,
           senderId: technicianId || (session.user as any).id,
           organizationId,
-          content: `${userName} fullførte besøk – ${units.length} enheter solgt. Tekniker ${tech?.name || 'ukjent'} booket til ${dateStr}`,
+          content: `${userName} registrerte ${units.length} enheter. Tekniker ${tech?.name || 'ukjent'} booket til ${dateStr}`,
           isSystem: true,
         },
       });

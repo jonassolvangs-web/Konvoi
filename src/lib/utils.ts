@@ -124,6 +124,7 @@ export const visitStatusConfig: Record<string, { label: string; color: string }>
 
 export const dwellingVisitStatusConfig: Record<string, { label: string; color: string }> = {
   ikke_besokt: { label: 'Ikke besøkt', color: 'bg-gray-100 text-gray-700' },
+  besok_booket: { label: 'Booket', color: 'bg-green-100 text-green-700' },
   solgt: { label: 'Solgt', color: 'bg-green-100 text-green-700' },
   ikke_interessert: { label: 'Ikke interessert', color: 'bg-red-100 text-red-600' },
   ikke_hjemme: { label: 'Ikke hjemme', color: 'bg-yellow-100 text-yellow-700' },

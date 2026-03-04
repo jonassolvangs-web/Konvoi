@@ -85,7 +85,7 @@ export const productsByOrderType: Record<string, { name: string; label: string; 
   ],
 };
 
-export const paymentPlanOptions = [1, 2, 3, 6];
+export const paymentPlanOptions = [0, 3, 6];
 
 // ─── Filter subscription prices ─────────────────────
 

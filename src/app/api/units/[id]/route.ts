@@ -29,6 +29,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const body = await req.json();
 
+    // Convert scheduledAt string to Date for Prisma DateTime field
+    if (body.scheduledAt && typeof body.scheduledAt === 'string') {
+      body.scheduledAt = new Date(body.scheduledAt);
+    }
+
     const unit = await prisma.$transaction(async (tx) => {
       const updated = await tx.dwellingUnit.update({
         where: { id },
@@ -37,17 +42,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       // Recalculate visit stats whenever visitStatus changes
       if (body.visitStatus !== undefined && updated.visitId) {
-        const soldCount = await tx.dwellingUnit.count({
-          where: { visitId: updated.visitId, visitStatus: 'solgt' },
+        const bookedOrSold = await tx.dwellingUnit.count({
+          where: { visitId: updated.visitId, visitStatus: { in: ['solgt', 'besok_booket'] } },
         });
         const totalRevenue = await tx.dwellingUnit.aggregate({
-          where: { visitId: updated.visitId, visitStatus: 'solgt' },
+          where: { visitId: updated.visitId, visitStatus: { in: ['solgt', 'besok_booket'] } },
           _sum: { price: true },
         });
         await tx.visit.update({
           where: { id: updated.visitId },
           data: {
-            unitsSold: soldCount,
+            unitsSold: bookedOrSold,
             totalRevenue: totalRevenue._sum.price || 0,
           },
         });
