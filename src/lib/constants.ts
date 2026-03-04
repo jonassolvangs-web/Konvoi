@@ -21,6 +21,7 @@ export const motebookerTabs = [
   { id: 'oversikt', label: 'Oversikt', href: '/motebooker/oversikt', icon: List },
   { id: 'maler', label: 'Maler', href: '/motebooker/maler', icon: FileText },
   { id: 'chat', label: 'Chat', href: '/motebooker/chat', icon: MessageSquare },
+  { id: 'profil', label: 'Profil', href: '/motebooker/profil', icon: User },
 ];
 
 export const feltselgerTabs = [
@@ -43,6 +44,7 @@ export const adminTabs = [
   { id: 'ansatte', label: 'Ansatte', href: '/admin/ansatte', icon: Users },
   { id: 'adresser', label: 'Adresser', href: '/admin/adresser', icon: Building2 },
   { id: 'innstillinger', label: 'Innstillinger', href: '/admin/innstillinger', icon: Settings },
+  { id: 'profil', label: 'Profil', href: '/admin/profil', icon: User },
 ];
 
 // ─── Default checklist for technician ───────────────
