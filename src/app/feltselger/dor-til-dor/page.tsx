@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, DoorOpen, CheckCircle, XCircle, Home } from 'lucide-react';
+import { Plus, DoorOpen, CheckCircle, XCircle, Home, PlusCircle } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
 import StatCard from '@/components/ui/stat-card';
@@ -45,6 +45,11 @@ export default function DorTilDorPage() {
   const [searchResults, setSearchResults] = useState<Organization[]>([]);
   const [searching, setSearching] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualAddress, setManualAddress] = useState('');
+  const [manualPostal, setManualPostal] = useState('');
+  const [manualCity, setManualCity] = useState('');
+  const [manualName, setManualName] = useState('');
 
   useEffect(() => {
     async function fetchVisits() {
@@ -99,6 +104,56 @@ export default function DorTilDorPage() {
       router.push(`/feltselger/besok/${data.visit.id}`);
     } catch {
       toast.error('Kunne ikke opprette besøk');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleCreateManual = async () => {
+    if (!manualAddress) {
+      toast.error('Skriv inn en adresse');
+      return;
+    }
+    setCreating(true);
+    try {
+      // Create organization first
+      const orgRes = await fetch('/api/organizations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: manualName || manualAddress,
+          address: manualAddress,
+          postalCode: manualPostal || undefined,
+          city: manualCity || undefined,
+          numUnits: 1,
+        }),
+      });
+      const orgData = await orgRes.json();
+      if (!orgRes.ok) throw new Error(orgData.error);
+
+      // Create visit for the new organization
+      const visitRes = await fetch('/api/visits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationId: orgData.organization.id,
+          source: 'dor_til_dor',
+        }),
+      });
+      const visitData = await visitRes.json();
+
+      toast.success('Adresse og besøk opprettet');
+      setShowModal(false);
+      setShowManualForm(false);
+      setManualAddress('');
+      setManualPostal('');
+      setManualCity('');
+      setManualName('');
+      setSearchQuery('');
+      setSearchResults([]);
+      router.push(`/feltselger/besok/${visitData.visit.id}`);
+    } catch (error: any) {
+      toast.error(error.message || 'Kunne ikke opprette adresse');
     } finally {
       setCreating(false);
     }
@@ -183,36 +238,89 @@ export default function DorTilDorPage() {
       </button>
 
       {/* Registration modal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Nytt dør-til-dør besøk">
+      <Modal isOpen={showModal} onClose={() => { setShowModal(false); setShowManualForm(false); }} title="Nytt dør-til-dør besøk">
         <div className="space-y-4">
-          <Input
-            label="Søk etter sameie"
-            placeholder="Navn eller adresse..."
-            value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
-          />
+          {!showManualForm ? (
+            <>
+              <Input
+                label="Søk etter eksisterende adresse"
+                placeholder="Navn eller adresse..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
 
-          {searching && <LoadingSpinner size="sm" />}
+              {searching && <LoadingSpinner size="sm" />}
 
-          {searchResults.length > 0 && (
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {searchResults.map((org) => (
-                <Card
-                  key={org.id}
-                  hover
-                  padding="sm"
-                  onClick={() => handleCreateVisit(org.id)}
+              {searchResults.length > 0 && (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {searchResults.map((org) => (
+                    <Card
+                      key={org.id}
+                      hover
+                      padding="sm"
+                      onClick={() => handleCreateVisit(org.id)}
+                    >
+                      <p className="text-sm font-semibold">{org.name}</p>
+                      <p className="text-xs text-gray-500">{org.address}</p>
+                      <p className="text-xs text-gray-400">{org.numUnits} enheter</p>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">Ingen resultater funnet</p>
+              )}
+
+              <div className="border-t border-gray-100 pt-4">
+                <button
+                  onClick={() => setShowManualForm(true)}
+                  className="flex items-center gap-2 w-full px-4 py-3 rounded-xl border border-dashed border-gray-300 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-colors"
                 >
-                  <p className="text-sm font-semibold">{org.name}</p>
-                  <p className="text-xs text-gray-500">{org.address}</p>
-                  <p className="text-xs text-gray-400">{org.numUnits} enheter</p>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
-            <p className="text-sm text-gray-500 text-center py-4">Ingen resultater funnet</p>
+                  <PlusCircle className="h-5 w-5" />
+                  <span>Legg til ny adresse manuelt</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-gray-500">Legg til en enkeltadresse (f.eks. hus, rekkehus)</p>
+              <Input
+                label="Adresse"
+                placeholder="Gydas gate 16"
+                value={manualAddress}
+                onChange={(e) => setManualAddress(e.target.value)}
+                required
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Postnr."
+                  placeholder="3732"
+                  value={manualPostal}
+                  onChange={(e) => setManualPostal(e.target.value)}
+                />
+                <Input
+                  label="Sted"
+                  placeholder="Skien"
+                  value={manualCity}
+                  onChange={(e) => setManualCity(e.target.value)}
+                />
+              </div>
+              <Input
+                label="Navn (valgfritt)"
+                placeholder="Beboernavn eller beskrivelse"
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+              />
+              <div className="flex gap-3">
+                <Button variant="secondary" onClick={() => setShowManualForm(false)} fullWidth>
+                  Tilbake
+                </Button>
+                <Button onClick={handleCreateManual} isLoading={creating} fullWidth disabled={!manualAddress}>
+                  Opprett besøk
+                </Button>
+              </div>
+            </>
           )}
         </div>
       </Modal>
