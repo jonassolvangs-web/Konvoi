@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import Avatar from '@/components/ui/avatar';
 import Badge from '@/components/ui/badge';
 import Card from '@/components/ui/card';
@@ -23,6 +23,8 @@ export default function AnsattePage() {
   const [editUser, setEditUser] = useState<any>(null);
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', roles: [] as string[] });
   const [saving, setSaving] = useState(false);
+  const [deleteUser, setDeleteUser] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchUsers = () => {
     fetch('/api/admin/users')
@@ -93,6 +95,25 @@ export default function AnsattePage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteUser) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/users/${deleteUser.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error);
+      }
+      toast.success(`${deleteUser.name} er slettet`);
+      setDeleteUser(null);
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.message || 'Kunne ikke slette bruker');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -128,9 +149,17 @@ export default function AnsattePage() {
                   ))}
                 </div>
               </div>
-              <div className="text-right text-xs text-gray-400">
-                <p>{user._count.callRecords} samtaler</p>
-                <p>{user._count.visits} besøk</p>
+              <div className="flex items-center gap-3">
+                <div className="text-right text-xs text-gray-400">
+                  <p>{user._count.callRecords} samtaler</p>
+                  <p>{user._count.visits} besøk</p>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDeleteUser(user); }}
+                  className="p-2 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4 text-red-400 hover:text-red-600" />
+                </button>
               </div>
             </div>
           </Card>
@@ -172,6 +201,27 @@ export default function AnsattePage() {
           <Button onClick={handleSave} isLoading={saving} fullWidth>
             {editUser ? 'Lagre endringer' : 'Opprett ansatt'}
           </Button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!deleteUser} onClose={() => setDeleteUser(null)} title="Slett ansatt" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            Er du sikker på at du vil slette <span className="font-semibold">{deleteUser?.name}</span>?
+          </p>
+          <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+            <p className="text-xs text-red-600">
+              Dette kan ikke angres. All data knyttet til brukeren vil bli slettet permanent.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="secondary" onClick={() => setDeleteUser(null)} fullWidth>
+              Avbryt
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={deleting} fullWidth>
+              Slett permanent
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

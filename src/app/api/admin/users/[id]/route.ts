@@ -86,12 +86,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireRole('ADMIN');
+    const session = await requireRole('ADMIN');
     const { id } = await params;
 
-    await prisma.user.update({
+    if ((session.user as any).id === id) {
+      return NextResponse.json({ error: 'Du kan ikke slette deg selv' }, { status: 400 });
+    }
+
+    await prisma.user.delete({
       where: { id },
-      data: { isActive: false },
     });
 
     return NextResponse.json({ success: true });
