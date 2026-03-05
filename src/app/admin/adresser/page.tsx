@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { UserPlus, Shuffle } from 'lucide-react';
+import { UserPlus, Shuffle, PlusCircle } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
 import SearchBar from '@/components/ui/search-bar';
@@ -9,6 +9,7 @@ import FilterChips from '@/components/ui/filter-chips';
 import StatusBadge from '@/components/ui/status-badge';
 import Modal from '@/components/ui/modal';
 import Select from '@/components/ui/select';
+import Input from '@/components/ui/input';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { formatDistance } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -33,6 +34,18 @@ export default function AdresserPage() {
   const [selectedOrgs, setSelectedOrgs] = useState<string[]>([]);
   const [assignUserId, setAssignUserId] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Manual address state
+  const [showAddAddress, setShowAddAddress] = useState(false);
+  const [manualAddress, setManualAddress] = useState('');
+  const [manualPostal, setManualPostal] = useState('');
+  const [manualCity, setManualCity] = useState('');
+  const [manualChairmanName, setManualChairmanName] = useState('');
+  const [manualChairmanPhone, setManualChairmanPhone] = useState('');
+  const [manualChairmanEmail, setManualChairmanEmail] = useState('');
+  const [manualNote, setManualNote] = useState('');
+  const [manualAssignTo, setManualAssignTo] = useState('');
+  const [addingAddress, setAddingAddress] = useState(false);
 
   const fetchData = async () => {
     const [orgRes, userRes] = await Promise.all([
@@ -107,6 +120,63 @@ export default function AdresserPage() {
     }
   };
 
+  const handleAddAddress = async () => {
+    if (!manualAddress.trim()) {
+      toast.error('Skriv inn en adresse');
+      return;
+    }
+    setAddingAddress(true);
+    try {
+      const fullAddress = [manualAddress.trim(), manualPostal.trim(), manualCity.trim()].filter(Boolean).join(', ');
+      const res = await fetch('/api/organizations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: manualChairmanName.trim() || fullAddress,
+          address: manualAddress.trim(),
+          postalCode: manualPostal.trim() || undefined,
+          city: manualCity.trim() || undefined,
+          numUnits: 1,
+          chairmanName: manualChairmanName.trim() || undefined,
+          chairmanPhone: manualChairmanPhone.trim() || undefined,
+          chairmanEmail: manualChairmanEmail.trim() || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+      if (data.organization?.id) {
+        const updateData: any = {};
+        if (manualAssignTo) updateData.assignedToId = manualAssignTo;
+        if (manualNote.trim()) updateData.notes = manualNote.trim();
+        if (manualAssignTo) updateData.status = 'tildelt';
+        if (Object.keys(updateData).length > 0) {
+          await fetch(`/api/organizations/${data.organization.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData),
+          });
+        }
+      }
+
+      toast.success('Adresse lagt til');
+      setShowAddAddress(false);
+      setManualAddress('');
+      setManualPostal('');
+      setManualCity('');
+      setManualChairmanName('');
+      setManualChairmanPhone('');
+      setManualChairmanEmail('');
+      setManualNote('');
+      setManualAssignTo('');
+      fetchData();
+    } catch {
+      toast.error('Kunne ikke legge til adresse');
+    } finally {
+      setAddingAddress(false);
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -123,6 +193,10 @@ export default function AdresserPage() {
           <Button size="sm" variant="secondary" onClick={handleDistribute} isLoading={saving}>
             <Shuffle className="h-4 w-4" />
             Fordel jevnt
+          </Button>
+          <Button size="sm" onClick={() => setShowAddAddress(true)}>
+            <PlusCircle className="h-4 w-4" />
+            Legg til
           </Button>
         </div>
       </div>
@@ -178,6 +252,87 @@ export default function AdresserPage() {
           />
           <Button onClick={handleAssign} isLoading={saving} fullWidth>
             Tildel
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showAddAddress} onClose={() => setShowAddAddress(false)} title="Legg til adresse manuelt">
+        <div className="space-y-3">
+          <Input
+            label="Adresse *"
+            placeholder="F.eks. Gydas gate 16"
+            value={manualAddress}
+            onChange={(e) => setManualAddress(e.target.value)}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Postnummer"
+              placeholder="3732"
+              value={manualPostal}
+              onChange={(e) => setManualPostal(e.target.value)}
+            />
+            <Input
+              label="Sted"
+              placeholder="Skien"
+              value={manualCity}
+              onChange={(e) => setManualCity(e.target.value)}
+            />
+          </div>
+          <div className="border-t border-gray-100 pt-3">
+            <p className="text-xs font-medium text-gray-500 uppercase mb-2">Kontaktperson</p>
+            <div className="space-y-3">
+              <Input
+                label="Navn"
+                placeholder="Ola Nordmann"
+                value={manualChairmanName}
+                onChange={(e) => setManualChairmanName(e.target.value)}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Telefon"
+                  type="tel"
+                  placeholder="900 00 000"
+                  value={manualChairmanPhone}
+                  onChange={(e) => setManualChairmanPhone(e.target.value)}
+                />
+                <Input
+                  label="E-post"
+                  type="email"
+                  placeholder="ola@example.no"
+                  value={manualChairmanEmail}
+                  onChange={(e) => setManualChairmanEmail(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="label">Notat</label>
+            <textarea
+              value={manualNote}
+              onChange={(e) => setManualNote(e.target.value)}
+              rows={2}
+              placeholder="F.eks. gammel ventilasjon, snakket med på døra..."
+              className="input-field w-full resize-none"
+            />
+          </div>
+          <div className="border-t border-gray-100 pt-3">
+            <Select
+              label="Tildel til møtebooker"
+              placeholder="Ikke tildelt"
+              value={manualAssignTo}
+              onChange={(e) => setManualAssignTo(e.target.value)}
+              options={users
+                .filter((u) => u.roles?.includes('MOTEBOOKER'))
+                .map((u) => ({ value: u.id, label: u.name }))}
+            />
+          </div>
+          <Button
+            fullWidth
+            onClick={handleAddAddress}
+            isLoading={addingAddress}
+            disabled={!manualAddress.trim()}
+          >
+            Legg til adresse
           </Button>
         </div>
       </Modal>
