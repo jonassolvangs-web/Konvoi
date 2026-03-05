@@ -13,6 +13,7 @@ import Button from '@/components/ui/button';
 import Input from '@/components/ui/input';
 import AvailableSlotPicker from '@/components/ui/available-slot-picker';
 import LoadingSpinner from '@/components/ui/loading-spinner';
+import { PlusCircle } from 'lucide-react';
 import { cn, orgStatusConfig } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
@@ -79,6 +80,18 @@ export default function KartPage() {
   const [callbackDate, setCallbackDate] = useState('');
 
   const [loggingResult, setLoggingResult] = useState(false);
+
+  // Manual address state
+  const [showAddAddress, setShowAddAddress] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualAddress, setManualAddress] = useState('');
+  const [manualPostal, setManualPostal] = useState('');
+  const [manualCity, setManualCity] = useState('');
+  const [manualUnits, setManualUnits] = useState('');
+  const [manualChairmanName, setManualChairmanName] = useState('');
+  const [manualChairmanPhone, setManualChairmanPhone] = useState('');
+  const [manualChairmanEmail, setManualChairmanEmail] = useState('');
+  const [addingAddress, setAddingAddress] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -376,6 +389,58 @@ export default function KartPage() {
     setShowBookMeeting(true);
   };
 
+  // ── Add manual address ──
+  const handleAddAddress = async () => {
+    if (!manualAddress.trim()) {
+      toast.error('Skriv inn en adresse');
+      return;
+    }
+    setAddingAddress(true);
+    try {
+      const res = await fetch('/api/organizations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: manualName.trim() || manualAddress.trim(),
+          address: manualAddress.trim(),
+          postalCode: manualPostal.trim() || undefined,
+          city: manualCity.trim() || undefined,
+          numUnits: manualUnits ? parseInt(manualUnits) : 1,
+          chairmanName: manualChairmanName.trim() || undefined,
+          chairmanPhone: manualChairmanPhone.trim() || undefined,
+          chairmanEmail: manualChairmanEmail.trim() || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error();
+
+      // Assign to current user
+      const data = await res.json();
+      if (data.organization?.id && userId) {
+        await fetch(`/api/organizations/${data.organization.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignedToId: userId }),
+        });
+      }
+
+      toast.success('Adresse lagt til');
+      setShowAddAddress(false);
+      setManualName('');
+      setManualAddress('');
+      setManualPostal('');
+      setManualCity('');
+      setManualUnits('');
+      setManualChairmanName('');
+      setManualChairmanPhone('');
+      setManualChairmanEmail('');
+      fetchData();
+    } catch {
+      toast.error('Kunne ikke legge til adresse');
+    } finally {
+      setAddingAddress(false);
+    }
+  };
+
   const statusChips = [
     { id: 'alle', label: 'Alle' },
     { id: 'ikke_kontaktet', label: 'Nye', count: filterCounts.ikke_kontaktet || 0 },
@@ -391,7 +456,14 @@ export default function KartPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-4 pt-4 pb-2 space-y-3">
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setShowAddAddress(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Legg til
+          </button>
           <ToggleTabs
             tabs={[
               { id: 'kart', label: 'Kart' },
@@ -612,6 +684,82 @@ export default function KartPage() {
           </div>
           <Button fullWidth onClick={handleSaveNote} isLoading={savingNote} disabled={!noteText.trim()}>
             Lagre
+          </Button>
+        </div>
+      </Modal>
+
+      {/* ── Add address modal ── */}
+      <Modal isOpen={showAddAddress} onClose={() => setShowAddAddress(false)} title="Legg til adresse manuelt">
+        <div className="space-y-3">
+          <Input
+            label="Adresse *"
+            placeholder="F.eks. Storgata 15"
+            value={manualAddress}
+            onChange={(e) => setManualAddress(e.target.value)}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Postnummer"
+              placeholder="0150"
+              value={manualPostal}
+              onChange={(e) => setManualPostal(e.target.value)}
+            />
+            <Input
+              label="Sted"
+              placeholder="Oslo"
+              value={manualCity}
+              onChange={(e) => setManualCity(e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Navn / Sameie"
+              placeholder="Storgata 15 Sameie"
+              value={manualName}
+              onChange={(e) => setManualName(e.target.value)}
+            />
+            <Input
+              label="Antall enheter"
+              type="number"
+              placeholder="1"
+              value={manualUnits}
+              onChange={(e) => setManualUnits(e.target.value)}
+            />
+          </div>
+          <div className="border-t border-gray-100 pt-3">
+            <p className="text-xs font-medium text-gray-500 uppercase mb-2">Kontaktperson</p>
+            <div className="space-y-3">
+              <Input
+                label="Navn"
+                placeholder="Ola Nordmann"
+                value={manualChairmanName}
+                onChange={(e) => setManualChairmanName(e.target.value)}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Telefon"
+                  type="tel"
+                  placeholder="900 00 000"
+                  value={manualChairmanPhone}
+                  onChange={(e) => setManualChairmanPhone(e.target.value)}
+                />
+                <Input
+                  label="E-post"
+                  type="email"
+                  placeholder="ola@example.no"
+                  value={manualChairmanEmail}
+                  onChange={(e) => setManualChairmanEmail(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          <Button
+            fullWidth
+            onClick={handleAddAddress}
+            isLoading={addingAddress}
+            disabled={!manualAddress.trim()}
+          >
+            Legg til adresse
           </Button>
         </div>
       </Modal>
