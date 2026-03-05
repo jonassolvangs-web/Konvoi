@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { geocodeAddress } from '@/lib/geonorge';
 import { getOfficeCoordinates, calculateDistanceFromOffice } from '@/lib/distance';
+import { sendPushToAll } from '@/lib/push';
 
 const createOrgSchema = z.object({
   name: z.string().min(1),
@@ -96,6 +97,13 @@ export async function POST(req: NextRequest) {
         });
       }
     }
+
+    // Send push notification to all subscribers
+    sendPushToAll({
+      title: 'Ny adresse lagt til',
+      body: `${org.name} – ${org.city || org.address}`,
+      url: '/motebooker/kart',
+    }).catch((err) => console.error('Push send error:', err));
 
     return NextResponse.json({ organization: org }, { status: 201 });
   } catch (error: any) {

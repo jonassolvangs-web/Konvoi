@@ -33,6 +33,7 @@ model User {
   chatMessages          ChatMessage[]
   notifications         Notification[]
   availability          Availability[]
+  pushSubscriptions     PushSubscription[]
 
   @@map("users")
 }
@@ -305,6 +306,18 @@ model Availability {
   @@index([userId, date])
   @@index([userId, dayOfWeek])
   @@map("availability")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String   @unique
+  auth      String
+  p256dh    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("push_subscriptions")
 }
 
 model Setting {
