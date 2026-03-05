@@ -1,13 +1,22 @@
 import webpush from 'web-push';
 import prisma from '@/lib/prisma';
 
-webpush.setVapidDetails(
-  'mailto:push@konvoi.no',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+let vapidConfigured = false;
+
+function ensureVapid() {
+  if (vapidConfigured) return;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) {
+    throw new Error('VAPID keys not configured');
+  }
+  webpush.setVapidDetails('mailto:push@konvoi.no', publicKey, privateKey);
+  vapidConfigured = true;
+}
 
 export async function sendPushToAll(payload: { title: string; body: string; url: string }) {
+  ensureVapid();
+
   const subscriptions = await prisma.pushSubscription.findMany();
 
   const results = await Promise.allSettled(
