@@ -22,6 +22,7 @@ interface Organization {
   chairmanEmail: string | null;
   distanceFromOfficeKm: number | null;
   distanceFromOfficeMin: number | null;
+  notes: string | null;
 }
 
 interface DialerViewProps {
@@ -320,6 +321,14 @@ export default function DialerView({ organizations, feltselgere, stats, onCallLo
             )}
           </div>
         </div>
+
+        {/* Notes */}
+        {org.notes && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-3">
+            <p className="text-xs font-medium text-amber-700 uppercase mb-0.5">Notat</p>
+            <p className="text-sm text-amber-900">{org.notes}</p>
+          </div>
+        )}
 
         {/* Chairman */}
         {org.chairmanName && (

@@ -35,6 +35,7 @@ interface Organization {
   distanceFromOfficeKm: number | null;
   distanceFromOfficeMin: number | null;
   assignedToId: string | null;
+  notes: string | null;
 }
 
 

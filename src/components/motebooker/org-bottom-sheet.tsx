@@ -21,6 +21,7 @@ interface Organization {
   distanceFromOfficeKm: number | null;
   distanceFromOfficeMin: number | null;
   assignedToId: string | null;
+  notes: string | null;
 }
 
 interface OrgBottomSheetProps {
@@ -116,6 +117,14 @@ export default function OrgBottomSheet({
               )}
             </div>
           </div>
+
+          {/* Notes */}
+          {org.notes && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+              <p className="text-xs font-medium text-amber-700 uppercase mb-0.5">Notat</p>
+              <p className="text-sm text-amber-900">{org.notes}</p>
+            </div>
+          )}
 
           {/* Chairman section */}
           {org.chairmanName && (
