@@ -83,14 +83,13 @@ export default function KartPage() {
 
   // Manual address state
   const [showAddAddress, setShowAddAddress] = useState(false);
-  const [manualName, setManualName] = useState('');
   const [manualAddress, setManualAddress] = useState('');
   const [manualPostal, setManualPostal] = useState('');
   const [manualCity, setManualCity] = useState('');
-  const [manualUnits, setManualUnits] = useState('');
   const [manualChairmanName, setManualChairmanName] = useState('');
   const [manualChairmanPhone, setManualChairmanPhone] = useState('');
   const [manualChairmanEmail, setManualChairmanEmail] = useState('');
+  const [manualNote, setManualNote] = useState('');
   const [addingAddress, setAddingAddress] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -397,15 +396,16 @@ export default function KartPage() {
     }
     setAddingAddress(true);
     try {
+      const fullAddress = [manualAddress.trim(), manualPostal.trim(), manualCity.trim()].filter(Boolean).join(', ');
       const res = await fetch('/api/organizations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: manualName.trim() || manualAddress.trim(),
+          name: manualChairmanName.trim() || fullAddress,
           address: manualAddress.trim(),
           postalCode: manualPostal.trim() || undefined,
           city: manualCity.trim() || undefined,
-          numUnits: manualUnits ? parseInt(manualUnits) : 1,
+          numUnits: 1,
           chairmanName: manualChairmanName.trim() || undefined,
           chairmanPhone: manualChairmanPhone.trim() || undefined,
           chairmanEmail: manualChairmanEmail.trim() || undefined,
@@ -413,26 +413,30 @@ export default function KartPage() {
       });
       if (!res.ok) throw new Error();
 
-      // Assign to current user
+      // Assign to current user + save note
       const data = await res.json();
-      if (data.organization?.id && userId) {
-        await fetch(`/api/organizations/${data.organization.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ assignedToId: userId }),
-        });
+      if (data.organization?.id) {
+        const updateData: any = {};
+        if (userId) updateData.assignedToId = userId;
+        if (manualNote.trim()) updateData.notes = manualNote.trim();
+        if (Object.keys(updateData).length > 0) {
+          await fetch(`/api/organizations/${data.organization.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData),
+          });
+        }
       }
 
       toast.success('Adresse lagt til');
       setShowAddAddress(false);
-      setManualName('');
       setManualAddress('');
       setManualPostal('');
       setManualCity('');
-      setManualUnits('');
       setManualChairmanName('');
       setManualChairmanPhone('');
       setManualChairmanEmail('');
+      setManualNote('');
       fetchData();
     } catch {
       toast.error('Kunne ikke legge til adresse');
@@ -693,41 +697,26 @@ export default function KartPage() {
         <div className="space-y-3">
           <Input
             label="Adresse *"
-            placeholder="F.eks. Storgata 15"
+            placeholder="F.eks. Gydas gate 16"
             value={manualAddress}
             onChange={(e) => setManualAddress(e.target.value)}
           />
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Postnummer"
-              placeholder="0150"
+              placeholder="3732"
               value={manualPostal}
               onChange={(e) => setManualPostal(e.target.value)}
             />
             <Input
               label="Sted"
-              placeholder="Oslo"
+              placeholder="Skien"
               value={manualCity}
               onChange={(e) => setManualCity(e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Navn / Sameie"
-              placeholder="Storgata 15 Sameie"
-              value={manualName}
-              onChange={(e) => setManualName(e.target.value)}
-            />
-            <Input
-              label="Antall enheter"
-              type="number"
-              placeholder="1"
-              value={manualUnits}
-              onChange={(e) => setManualUnits(e.target.value)}
-            />
-          </div>
           <div className="border-t border-gray-100 pt-3">
-            <p className="text-xs font-medium text-gray-500 uppercase mb-2">Kontaktperson</p>
+            <p className="text-xs font-medium text-gray-500 uppercase mb-2">Beboer</p>
             <div className="space-y-3">
               <Input
                 label="Navn"
@@ -752,6 +741,16 @@ export default function KartPage() {
                 />
               </div>
             </div>
+          </div>
+          <div>
+            <label className="label">Notat</label>
+            <textarea
+              value={manualNote}
+              onChange={(e) => setManualNote(e.target.value)}
+              rows={2}
+              placeholder="F.eks. gammel ventilasjon, snakket med på døra..."
+              className="input-field w-full resize-none"
+            />
           </div>
           <Button
             fullWidth
