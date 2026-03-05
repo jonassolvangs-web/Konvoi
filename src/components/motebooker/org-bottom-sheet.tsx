@@ -1,8 +1,9 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { X, Phone, MessageSquare, Mail, FileText, Copy, Car, CalendarDays } from 'lucide-react';
+import { X, Phone, MessageSquare, Mail, FileText, Copy, Car, CalendarDays, UserPlus } from 'lucide-react';
 import { formatDistance, formatPhone } from '@/lib/utils';
+import { saveContact } from '@/lib/vcard';
 import toast from 'react-hot-toast';
 
 interface Organization {
@@ -150,15 +151,46 @@ export default function OrgBottomSheet({
             </div>
           )}
 
-          {/* Ring button */}
+          {/* Ring button + save contact */}
           {org.chairmanPhone && (
-            <a
-              href={`tel:${org.chairmanPhone}`}
-              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 transition-colors"
-            >
-              <Phone className="h-4 w-4" />
-              Ring {org.chairmanName?.split(' ')[0] || 'Styreleder'}
-            </a>
+            <div className="flex gap-2">
+              <a
+                href={`tel:${org.chairmanPhone}`}
+                onClick={() => {
+                  if (org.chairmanName && org.chairmanPhone) {
+                    saveContact({
+                      name: org.chairmanName,
+                      phone: org.chairmanPhone,
+                      email: org.chairmanEmail,
+                      organization: org.name,
+                      address: org.address,
+                    });
+                  }
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 transition-colors"
+              >
+                <Phone className="h-4 w-4" />
+                Ring {org.chairmanName?.split(' ')[0] || 'Styreleder'}
+              </a>
+              <button
+                onClick={() => {
+                  if (org.chairmanName) {
+                    saveContact({
+                      name: org.chairmanName,
+                      phone: org.chairmanPhone,
+                      email: org.chairmanEmail,
+                      organization: org.name,
+                      address: org.address,
+                    });
+                    toast.success('Kontakt lastet ned');
+                  }
+                }}
+                className="flex items-center justify-center w-11 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors"
+                title="Lagre kontakt"
+              >
+                <UserPlus className="h-4 w-4 text-gray-600" />
+              </button>
+            </div>
           )}
 
           {/* Quick actions + Book meeting in one row */}
