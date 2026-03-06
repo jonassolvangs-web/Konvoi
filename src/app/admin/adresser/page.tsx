@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { UserPlus, Shuffle, PlusCircle } from 'lucide-react';
+import { UserPlus, Shuffle, PlusCircle, MapPin } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
 import SearchBar from '@/components/ui/search-bar';
@@ -226,7 +226,22 @@ export default function AdresserPage() {
                   <p className="text-sm font-semibold truncate">{org.name}</p>
                   <StatusBadge type="organization" status={org.status} />
                 </div>
-                <p className="text-xs text-gray-500">{org.address}</p>
+                <div className="flex items-center gap-1">
+                  <p className="text-xs text-gray-500">{org.address}</p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const query = org.latitude && org.longitude
+                        ? `${org.latitude},${org.longitude}`
+                        : encodeURIComponent(`${org.address}${org.city ? ', ' + org.city : ''}`);
+                      window.open(`https://maps.google.com/?q=${query}`, '_blank');
+                    }}
+                    className="p-1 rounded-md hover:bg-gray-100 transition-colors flex-shrink-0"
+                    aria-label="Åpne i Google Maps"
+                  >
+                    <MapPin className="h-3.5 w-3.5 text-blue-500" />
+                  </button>
+                </div>
                 <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
                   {org.numUnits && <span>{org.numUnits} enheter</span>}
                   {org.distanceFromOfficeKm && (
