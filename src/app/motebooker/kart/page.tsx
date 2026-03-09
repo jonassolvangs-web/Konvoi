@@ -67,6 +67,7 @@ export default function KartPage() {
 
   // SMS state
   const [smsText, setSmsText] = useState('');
+  const [smsTemplates, setSmsTemplates] = useState<{ id: string; title: string; body: string }[]>([]);
 
   // Email state
   const [emailSubject, setEmailSubject] = useState('');
@@ -294,11 +295,30 @@ export default function KartPage() {
   };
 
   // ── SMS ──
-  const openSmsModal = () => {
+  const replaceVariables = (text: string, org: Organization) => {
+    const userName = (session?.user as any)?.name || '';
+    return text
+      .replace(/\{\{navn\}\}/g, org.name || '')
+      .replace(/\{\{adresse\}\}/g, org.address || '')
+      .replace(/\{\{enheter\}\}/g, String(org.numUnits || ''))
+      .replace(/\{\{selger\}\}/g, userName)
+      .replace(/\{\{dato\}\}/g, '')
+      .replace(/\{\{tidspunkt\}\}/g, '');
+  };
+
+  const openSmsModal = async () => {
     if (selectedOrg) {
       setSmsText(
         `Hei, dette er fra Konvoi. Vi kontakter deg angående ventilasjonsrens for ${selectedOrg.name}. Vennligst ta kontakt for å avtale tidspunkt.`
       );
+    }
+    // Fetch SMS templates
+    try {
+      const res = await fetch('/api/templates');
+      const data = await res.json();
+      setSmsTemplates((data.templates || []).filter((t: any) => t.type === 'sms'));
+    } catch {
+      setSmsTemplates([]);
     }
     setShowSmsModal(true);
   };
@@ -610,6 +630,22 @@ export default function KartPage() {
             <label className="label">Til</label>
             <p className="text-sm text-gray-700">{selectedOrg?.chairmanName} ({selectedOrg?.chairmanPhone || 'Ingen nummer'})</p>
           </div>
+          {smsTemplates.length > 0 && (
+            <div>
+              <label className="label">Velg mal</label>
+              <div className="flex flex-wrap gap-2">
+                {smsTemplates.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => selectedOrg && setSmsText(replaceVariables(t.body, selectedOrg))}
+                    className="px-3 py-1.5 text-sm rounded-xl border border-gray-200 hover:border-black hover:bg-gray-50 transition-colors"
+                  >
+                    {t.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <label className="label">Melding</label>
             <textarea

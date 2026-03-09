@@ -329,3 +329,15 @@ model Setting {
 
   @@map("settings")
 }
+
+model SmsTemplate {
+  id        String   @id @default(cuid())
+  type      String   @default("sms") // "sms" | "email"
+  title     String
+  subject   String?
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("sms_templates")
+}

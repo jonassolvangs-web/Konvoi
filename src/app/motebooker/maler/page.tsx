@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Plus, Mail, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Badge from '@/components/ui/badge';
@@ -28,6 +28,31 @@ const typeFilters = [
 
 const VARIABLES = ['{{navn}}', '{{adresse}}', '{{dato}}', '{{tidspunkt}}', '{{selger}}', '{{enheter}}'];
 
+const DEFAULT_TEMPLATES: Omit<Template, 'id'>[] = [
+  {
+    type: 'email',
+    title: 'Første kontakt',
+    subject: 'Ventilasjonsrens for {{navn}}',
+    body: 'Hei,\n\nVi kontakter deg angående ventilasjonsrens for {{navn}} på {{adresse}}.\n\nVi tilbyr profesjonell ventilasjonsrens som forbedrer inneklimaet og reduserer energiforbruket.\n\nKan vi avtale et tidspunkt for befaring?\n\nMed vennlig hilsen,\n{{selger}}',
+  },
+  {
+    type: 'email',
+    title: 'Oppfølging etter samtale',
+    subject: 'Oppfølging - Ventilasjonsrens {{navn}}',
+    body: 'Hei,\n\nTakk for hyggelig samtale. Som avtalt sender jeg mer informasjon om ventilasjonsrens for {{navn}}.\n\nVi har avtalt befaring {{dato}} kl. {{tidspunkt}}.\n\nMed vennlig hilsen,\n{{selger}}',
+  },
+  {
+    type: 'sms',
+    title: 'Påminnelse møte',
+    body: 'Hei! Påminnelse om befaring i morgen kl. {{tidspunkt}} på {{adresse}}. Mvh {{selger}}',
+  },
+  {
+    type: 'sms',
+    title: 'Ikke hjemme',
+    body: 'Hei! Vi var innom {{adresse}} i dag, men traff ingen. Ring oss gjerne på tlf for å avtale nytt tidspunkt. Mvh {{selger}}',
+  },
+];
+
 export default function MalerPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,45 +61,44 @@ export default function MalerPage() {
   const [editTemplate, setEditTemplate] = useState<Template | null>(null);
   const [form, setForm] = useState({ type: 'email' as 'email' | 'sms', title: '', subject: '', body: '' });
   const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
-  useEffect(() => {
-    // For now, use local state with default templates
-    setTemplates([
-      {
-        id: '1',
-        type: 'email',
-        title: 'Første kontakt',
-        subject: 'Ventilasjonsrens for {{navn}}',
-        body: 'Hei,\n\nVi kontakter deg angående ventilasjonsrens for {{navn}} på {{adresse}}.\n\nVi tilbyr profesjonell ventilasjonsrens som forbedrer inneklimaet og reduserer energiforbruket.\n\nKan vi avtale et tidspunkt for befaring?\n\nMed vennlig hilsen,\n{{selger}}',
-      },
-      {
-        id: '2',
-        type: 'email',
-        title: 'Oppfølging etter samtale',
-        subject: 'Oppfølging - Ventilasjonsrens {{navn}}',
-        body: 'Hei,\n\nTakk for hyggelig samtale. Som avtalt sender jeg mer informasjon om ventilasjonsrens for {{navn}}.\n\nVi har avtalt befaring {{dato}} kl. {{tidspunkt}}.\n\nMed vennlig hilsen,\n{{selger}}',
-      },
-      {
-        id: '3',
-        type: 'sms',
-        title: 'Påminnelse møte',
-        body: 'Hei! Påminnelse om befaring i morgen kl. {{tidspunkt}} på {{adresse}}. Mvh {{selger}}',
-      },
-      {
-        id: '4',
-        type: 'sms',
-        title: 'Ikke hjemme',
-        body: 'Hei! Vi var innom {{adresse}} i dag, men traff ingen. Ring oss gjerne på tlf for å avtale nytt tidspunkt. Mvh {{selger}}',
-      },
-    ]);
-    setLoading(false);
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/templates');
+      const data = await res.json();
+      const fetched = data.templates || [];
+
+      // Seed default templates if empty
+      if (fetched.length === 0) {
+        const created: Template[] = [];
+        for (const t of DEFAULT_TEMPLATES) {
+          const r = await fetch('/api/templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(t),
+          });
+          const d = await r.json();
+          if (d.template) created.push(d.template);
+        }
+        setTemplates(created);
+      } else {
+        setTemplates(fetched);
+      }
+    } catch {
+      setTemplates([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
 
   const filtered = templates.filter((t) => typeFilter === 'alle' || t.type === typeFilter);
 
   const openCreate = () => {
     setEditTemplate(null);
-    setForm({ type: 'email', title: '', subject: '', body: '' });
+    setForm({ type: 'sms', title: '', subject: '', body: '' });
     setShowModal(true);
   };
 
@@ -84,30 +108,49 @@ export default function MalerPage() {
     setShowModal(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title || !form.body) {
       toast.error('Fyll ut tittel og innhold');
       return;
     }
     setSaving(true);
-
-    if (editTemplate) {
-      setTemplates((prev) =>
-        prev.map((t) => (t.id === editTemplate.id ? { ...t, ...form } : t))
-      );
-      toast.success('Mal oppdatert');
-    } else {
-      setTemplates((prev) => [...prev, { id: Date.now().toString(), ...form }]);
-      toast.success('Mal opprettet');
+    try {
+      if (editTemplate) {
+        const res = await fetch(`/api/templates/${editTemplate.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        });
+        if (!res.ok) throw new Error();
+        toast.success('Mal oppdatert');
+      } else {
+        const res = await fetch('/api/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        });
+        if (!res.ok) throw new Error();
+        toast.success('Mal opprettet');
+      }
+      setShowModal(false);
+      fetchTemplates();
+    } catch {
+      toast.error('Kunne ikke lagre mal');
+    } finally {
+      setSaving(false);
     }
-
-    setShowModal(false);
-    setSaving(false);
   };
 
-  const handleDelete = (id: string) => {
-    setTemplates((prev) => prev.filter((t) => t.id !== id));
-    toast.success('Mal slettet');
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/templates/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      toast.success('Mal slettet');
+      setShowDeleteConfirm(null);
+      fetchTemplates();
+    } catch {
+      toast.error('Kunne ikke slette mal');
+    }
   };
 
   if (loading) return <LoadingSpinner />;
@@ -152,7 +195,7 @@ export default function MalerPage() {
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(template.id); }}
+                    onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(template.id); }}
                     className="p-1.5 rounded-lg hover:bg-gray-100 text-red-400"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -174,6 +217,7 @@ export default function MalerPage() {
         </div>
       )}
 
+      {/* Create/Edit modal */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editTemplate ? 'Rediger mal' : 'Ny mal'}>
         <div className="space-y-4">
           <div>
@@ -226,6 +270,17 @@ export default function MalerPage() {
           <Button onClick={handleSave} isLoading={saving} fullWidth>
             {editTemplate ? 'Lagre endringer' : 'Opprett mal'}
           </Button>
+        </div>
+      </Modal>
+
+      {/* Delete confirm modal */}
+      <Modal isOpen={!!showDeleteConfirm} onClose={() => setShowDeleteConfirm(null)} title="Slett mal">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Er du sikker på at du vil slette denne malen?</p>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setShowDeleteConfirm(null)} fullWidth>Avbryt</Button>
+            <Button onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm)} fullWidth>Slett</Button>
+          </div>
         </div>
       </Modal>
     </div>
