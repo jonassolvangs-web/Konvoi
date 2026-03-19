@@ -383,32 +383,36 @@ export default function TeknikerOppdragDetailPage() {
 
   const generatePdfInBrowser = async (htmlContent: string): Promise<string> => {
     const html2pdf = (await import('html2pdf.js')).default;
+
+    // Extract body content from full HTML document
+    const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    const bodyStyles = htmlContent.match(/<body([^>]*)>/i);
+    const innerHtml = bodyMatch ? bodyMatch[1] : htmlContent;
+
     const container = document.createElement('div');
-    container.innerHTML = htmlContent;
+    // Apply body styles to container
+    const styleMatch = bodyStyles?.[1]?.match(/style="([^"]*)"/);
+    if (styleMatch) container.setAttribute('style', styleMatch[1]);
     container.style.position = 'absolute';
     container.style.left = '-9999px';
     container.style.width = '700px';
+    container.innerHTML = innerHtml;
     document.body.appendChild(container);
 
     try {
-      const pdfBlob: Blob = await html2pdf()
+      const dataUri: string = await html2pdf()
         .set({
           margin: [10, 10, 10, 10],
           filename: 'rapport.pdf',
           image: { type: 'jpeg', quality: 0.95 },
-          html2canvas: { scale: 2, useCORS: true },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         })
         .from(container)
-        .outputPdf('blob');
+        .output('datauristring');
 
-      const arrayBuffer = await pdfBlob.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return btoa(binary);
+      // Extract base64 from data URI
+      return dataUri.split(',')[1];
     } finally {
       document.body.removeChild(container);
     }
