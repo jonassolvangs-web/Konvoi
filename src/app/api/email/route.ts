@@ -3,8 +3,10 @@ import { Resend } from 'resend';
 import { requireAuth } from '@/lib/auth';
 import { generatePdfFromHtml } from '@/lib/pdf';
 
+export const maxDuration = 60;
+
 const resend = new Resend(process.env.RESEND_API_KEY);
-const fromEmail = process.env.EMAIL_FROM || 'post@ventrens.no';
+const fromEmail = process.env.EMAIL_FROM || 'hei@godtvedlikehold.no';
 
 export async function POST(req: NextRequest) {
   try {

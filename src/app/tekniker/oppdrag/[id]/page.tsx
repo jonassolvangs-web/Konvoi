@@ -423,7 +423,7 @@ export default function TeknikerOppdragDetailPage() {
         completedDate,
       });
 
-      await fetch('/api/email', {
+      const emailRes = await fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -434,6 +434,8 @@ export default function TeknikerOppdragDetailPage() {
           attachment: true,
         }),
       });
+      const emailResult = await emailRes.json();
+      if (emailResult.error) throw new Error(emailResult.error);
 
       // Mark report as sent on unit
       await fetch(`/api/work-orders/${id}`, {
@@ -444,8 +446,8 @@ export default function TeknikerOppdragDetailPage() {
 
       toast.success(`Rapport sendt til ${email}`);
       fetchWorkOrder();
-    } catch {
-      toast.error('Kunne ikke sende rapport');
+    } catch (err: any) {
+      toast.error(err.message || 'Kunne ikke sende rapport');
     } finally {
       setSendingReport(null);
     }
