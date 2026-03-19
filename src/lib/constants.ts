@@ -52,16 +52,10 @@ export const adminTabs = [
 // ─── Default checklist for technician ───────────────
 
 export const defaultChecklist = [
-  { id: 1, label: 'Sjekk avtrekksventiler', checked: false },
-  { id: 2, label: 'Sjekk tilluftventiler', checked: false },
-  { id: 3, label: 'Ren kanaler', checked: false },
-  { id: 4, label: 'Sjekk vifteenhet', checked: false },
-  { id: 5, label: 'Bytt filter', checked: false },
-  { id: 6, label: 'Sjekk lyd/vibrasjon', checked: false },
-  { id: 7, label: 'Sjekk kondens/fukt', checked: false },
-  { id: 8, label: 'Sjekk brannstopp', checked: false },
-  { id: 9, label: 'Måling før/etter', checked: false },
-  { id: 10, label: 'Dokumentasjon og bilder', checked: false },
+  { id: 1, label: 'Rengjøring av tilluftskanaler', checked: false },
+  { id: 2, label: 'Rengjøring av avtrekkskanaler', checked: false },
+  { id: 3, label: 'Rens av ventiler og ventilrister', checked: false },
+  { id: 4, label: 'Kontroll av aggregat og vifter', checked: false },
 ];
 
 // ─── Product prices ─────────────────────────────────

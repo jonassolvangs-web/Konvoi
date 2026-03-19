@@ -206,8 +206,8 @@ export default function OrgBottomSheet({
             </div>
           )}
 
-          {/* Quick actions + Book meeting in one row */}
-          <div className="grid grid-cols-4 gap-1.5">
+          {/* Quick actions */}
+          <div className="grid grid-cols-5 gap-1.5">
             <button onClick={onSms} className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
               <MessageSquare className="h-4 w-4 text-gray-600" />
               <span className="text-[10px] text-gray-600">SMS</span>
@@ -224,6 +224,12 @@ export default function OrgBottomSheet({
               <CalendarDays className="h-4 w-4 text-gray-600" />
               <span className="text-[10px] text-gray-600">Book møte</span>
             </button>
+            {onCreateWorkOrder && (
+              <button onClick={onCreateWorkOrder} className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+                <Wrench className="h-4 w-4 text-gray-600" />
+                <span className="text-[10px] text-gray-600">Oppdrag</span>
+              </button>
+            )}
           </div>
 
           {/* Emoji result bar */}
@@ -231,14 +237,12 @@ export default function OrgBottomSheet({
             {[
               { result: 'ikke_svar', emoji: '❄️', label: 'Ingen svar' },
               { result: 'ring_tilbake', emoji: '📞', label: 'Callback' },
-              ...(onCreateWorkOrder && !['venter_tekniker', 'rens_pagaar', 'fullfort'].includes(org.status)
-                ? [{ result: 'opprett_oppdrag', emoji: '🔧', label: 'Oppdrag' }]
-                : [{ result: 'mote_booket', emoji: '✅', label: 'Fullført' }]),
+              { result: 'mote_booket', emoji: '✅', label: 'Fullført' },
               { result: 'nei', emoji: '🚫', label: 'Nei' },
             ].map((btn) => (
               <button
                 key={btn.result}
-                onClick={() => btn.result === 'opprett_oppdrag' ? onCreateWorkOrder?.() : onLogResult(btn.result)}
+                onClick={() => onLogResult(btn.result)}
                 disabled={loggingResult}
                 className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl hover:bg-gray-50 active:scale-90 transition-all disabled:opacity-50"
               >
