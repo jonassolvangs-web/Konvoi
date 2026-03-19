@@ -30,12 +30,89 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await requireAuth();
+    const { id } = await params;
+    const userName = (session.user as any).name || 'Ukjent';
+
+    await prisma.$transaction(async (tx) => {
+      const wo = await tx.workOrder.findUnique({
+        where: { id },
+        select: { organizationId: true, technicianId: true, status: true },
+      });
+      if (!wo) throw new Error('Ikke funnet');
+
+      // Delete work order units
+      await tx.workOrderUnit.deleteMany({ where: { workOrderId: id } });
+
+      // Delete the work order
+      await tx.workOrder.delete({ where: { id } });
+
+      // Reset org status if no other active work orders remain
+      const otherOrders = await tx.workOrder.count({
+        where: { organizationId: wo.organizationId, status: { in: ['planlagt', 'pagaar'] } },
+      });
+      if (otherOrders === 0) {
+        await tx.organization.update({
+          where: { id: wo.organizationId },
+          data: { status: 'ny' },
+        });
+      }
+
+      // System chat message
+      await tx.chatMessage.create({
+        data: {
+          channelType: 'organization',
+          channelId: wo.organizationId,
+          senderId: wo.technicianId,
+          organizationId: wo.organizationId,
+          content: `${userName} avbrøt oppdraget`,
+          isSystem: true,
+        },
+      });
+
+      // Notify assigned user
+      const org = await tx.organization.findUnique({
+        where: { id: wo.organizationId },
+        select: { assignedToId: true, name: true },
+      });
+      if (org?.assignedToId) {
+        await tx.notification.create({
+          data: {
+            userId: org.assignedToId,
+            title: 'Oppdrag avbrutt',
+            message: `${userName} avbrøt oppdraget for ${org.name}`,
+            type: 'warning',
+          },
+        });
+      }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    if (error.message === 'Ikke autentisert') return NextResponse.json({ error: 'Ikke autentisert' }, { status: 401 });
+    if (error.message === 'Ikke funnet') return NextResponse.json({ error: 'Ikke funnet' }, { status: 404 });
+    console.error('Delete work order error:', error);
+    return NextResponse.json({ error: 'Intern feil' }, { status: 500 });
+  }
+}
+
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAuth();
     const { id } = await params;
     const body = await req.json();
     const userName = (session.user as any).name || 'Ukjent';
+
+    // Handle dwelling unit email update
+    if (body.dwellingUnitId && body.residentEmail !== undefined) {
+      const dwellingUnit = await prisma.dwellingUnit.update({
+        where: { id: body.dwellingUnitId },
+        data: { residentEmail: body.residentEmail },
+      });
+      return NextResponse.json({ dwellingUnit });
+    }
 
     // Handle unit updates (checklist, air measurements, payment, order changes)
     if (body.unitId) {

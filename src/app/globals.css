@@ -61,6 +61,30 @@ body {
   z-index: 10 !important;
 }
 
+/* Leaflet Draw toolbar overrides for admin */
+.leaflet-draw-toolbar a {
+  background-color: white !important;
+  border-radius: 0.5rem !important;
+  border: 1px solid #E5E7EB !important;
+}
+.leaflet-draw-toolbar a:hover {
+  background-color: #F3F4F6 !important;
+}
+.leaflet-draw-actions {
+  background: white !important;
+  border: 1px solid #E5E7EB !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+}
+.leaflet-draw-actions li a {
+  color: #111827 !important;
+  background: white !important;
+  font-size: 0.75rem !important;
+}
+.leaflet-draw-actions li a:hover {
+  background: #F3F4F6 !important;
+}
+
 /* iOS overscroll fix */
 html, body {
   overscroll-behavior: none;

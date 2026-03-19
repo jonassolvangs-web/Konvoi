@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { X, Phone, MessageSquare, Mail, FileText, Copy, Car, CalendarDays, UserPlus } from 'lucide-react';
+import { X, Phone, MessageSquare, Mail, FileText, Copy, Car, CalendarDays, UserPlus, Wrench, Trash2 } from 'lucide-react';
 import { formatDistance, formatPhone } from '@/lib/utils';
 import { saveContact } from '@/lib/vcard';
 import toast from 'react-hot-toast';
@@ -32,6 +32,8 @@ interface OrgBottomSheetProps {
   onSms: () => void;
   onEmail: () => void;
   onNotes: () => void;
+  onCreateWorkOrder?: () => void;
+  onDelete?: () => void;
   loggingResult?: boolean;
 }
 
@@ -43,6 +45,8 @@ export default function OrgBottomSheet({
   onSms,
   onEmail,
   onNotes,
+  onCreateWorkOrder,
+  onDelete,
   loggingResult,
 }: OrgBottomSheetProps) {
   const copyToClipboard = (text: string) => {
@@ -227,12 +231,14 @@ export default function OrgBottomSheet({
             {[
               { result: 'ikke_svar', emoji: '❄️', label: 'Ingen svar' },
               { result: 'ring_tilbake', emoji: '📞', label: 'Callback' },
-              { result: 'mote_booket', emoji: '✅', label: 'Fullført' },
+              ...(onCreateWorkOrder && !['venter_tekniker', 'rens_pagaar', 'fullfort'].includes(org.status)
+                ? [{ result: 'opprett_oppdrag', emoji: '🔧', label: 'Oppdrag' }]
+                : [{ result: 'mote_booket', emoji: '✅', label: 'Fullført' }]),
               { result: 'nei', emoji: '🚫', label: 'Nei' },
             ].map((btn) => (
               <button
                 key={btn.result}
-                onClick={() => onLogResult(btn.result)}
+                onClick={() => btn.result === 'opprett_oppdrag' ? onCreateWorkOrder?.() : onLogResult(btn.result)}
                 disabled={loggingResult}
                 className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl hover:bg-gray-50 active:scale-90 transition-all disabled:opacity-50"
               >
@@ -241,6 +247,17 @@ export default function OrgBottomSheet({
               </button>
             ))}
           </div>
+
+          {/* Delete button */}
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              className="flex items-center justify-center gap-1.5 w-full py-2 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Fjern fra kartet
+            </button>
+          )}
         </div>
       </div>
     </div>

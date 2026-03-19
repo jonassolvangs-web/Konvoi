@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, MapPin, Clock, Play, CheckCircle, Square, CheckSquare,
   Wind, CreditCard, PenTool, Building2, Trash2, Edit3, Camera, Send,
-  Image as ImageIcon,
+  Image as ImageIcon, XCircle,
 } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
@@ -77,6 +77,7 @@ interface WorkOrder {
     address: string;
     latitude: number | null;
     longitude: number | null;
+    chairmanEmail: string | null;
   };
   technician: { name: string; email: string };
   units: WorkOrderUnit[];
@@ -90,6 +91,8 @@ export default function TeknikerOppdragDetailPage() {
   const [activeUnit, setActiveUnit] = useState<string | null>(null);
   const [showSignature, setShowSignature] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Air measurement state
   const [airBefore, setAirBefore] = useState('');
@@ -115,6 +118,7 @@ export default function TeknikerOppdragDetailPage() {
   // Photo upload state
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null); // 'before-{unitId}' | 'after-{unitId}'
   const [sendingReport, setSendingReport] = useState<string | null>(null); // unitId
+  const [manualEmails, setManualEmails] = useState<Record<string, string>>({}); // unitId -> email
 
   // Signature canvas
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -147,6 +151,20 @@ export default function TeknikerOppdragDetailPage() {
       fetchWorkOrder();
     } catch {
       toast.error('Kunne ikke starte oppdrag');
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/work-orders/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      toast.success('Oppdrag slettet');
+      router.push('/tekniker/oppdrag');
+    } catch {
+      toast.error('Kunne ikke slette oppdrag');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -333,28 +351,61 @@ export default function TeknikerOppdragDetailPage() {
     }
   };
 
+  const getUnitEmail = (unit: WorkOrderUnit) => {
+    return unit.dwellingUnit.residentEmail || workOrder?.organization.chairmanEmail || null;
+  };
+
   const handleSendReport = async (unit: WorkOrderUnit) => {
+    const email = getUnitEmail(unit) || manualEmails[unit.id]?.trim();
+    if (!email) {
+      toast.error('Legg inn e-postadresse først');
+      return;
+    }
+
     setSendingReport(unit.id);
     try {
       if (!workOrder) return;
-      const { generateReportHtml } = await import('@/lib/report');
+
+      // Save manually entered email to dwelling unit
+      if (!getUnitEmail(unit) && manualEmails[unit.id]?.trim()) {
+        await fetch(`/api/work-orders/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dwellingUnitId: unit.dwellingUnit.id,
+            residentEmail: manualEmails[unit.id].trim(),
+          }),
+        });
+      }
+
+      const { generateReportHtml, generateGreetingHtml } = await import('@/lib/report');
       const baseUrl = window.location.origin;
-      const html = generateReportHtml({
+      const completedDate = new Date().toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' });
+      const reportHtml = generateReportHtml({
         organizationName: workOrder.organization.name,
         organizationAddress: workOrder.organization.address,
         technicianName: workOrder.technician.name,
-        completedDate: new Date().toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }),
+        technicianPhone: '',
+        technicianEmail: workOrder.technician.email,
+        completedDate,
         units: [unit],
       }, baseUrl);
 
-      const email = unit.dwellingUnit.residentEmail;
+      const greetingHtml = generateGreetingHtml({
+        residentName: unit.dwellingUnit.residentName,
+        organizationName: workOrder.organization.name,
+        completedDate,
+      });
+
       await fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: email || 'ingen-epost@placeholder.no',
-          subject: `Rapport – Ventilasjonsrens ${workOrder.organization.name}`,
-          html,
+          to: email,
+          subject: `Rapport – Ventilasjonsrens ${workOrder.organization.address}`,
+          html: greetingHtml,
+          reportHtml,
+          attachment: true,
         }),
       });
 
@@ -365,7 +416,7 @@ export default function TeknikerOppdragDetailPage() {
         body: JSON.stringify({ unitId: unit.id, reportSentAt: new Date().toISOString() }),
       });
 
-      toast.success(email ? `Rapport sendt til ${email}` : 'Rapport sendt (ingen e-post registrert)');
+      toast.success(`Rapport sendt til ${email}`);
       fetchWorkOrder();
     } catch {
       toast.error('Kunne ikke sende rapport');
@@ -514,16 +565,26 @@ export default function TeknikerOppdragDetailPage() {
       {/* Action buttons */}
       <div className="flex gap-2 mb-4">
         {workOrder.status === 'planlagt' && (
-          <Button fullWidth onClick={handleStartOrder}>
-            <Play className="h-4 w-4" />
-            Start oppdrag
-          </Button>
+          <>
+            <Button fullWidth onClick={handleStartOrder}>
+              <Play className="h-4 w-4" />
+              Start oppdrag
+            </Button>
+            <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </>
         )}
         {workOrder.status === 'pagaar' && (
-          <Button fullWidth onClick={() => setShowSignature(true)}>
-            <CheckCircle className="h-4 w-4" />
-            Fullfør oppdrag
-          </Button>
+          <>
+            <Button fullWidth onClick={() => setShowSignature(true)}>
+              <CheckCircle className="h-4 w-4" />
+              Fullfør oppdrag
+            </Button>
+            <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+              <XCircle className="h-4 w-4" />
+            </Button>
+          </>
         )}
       </div>
 
@@ -919,16 +980,30 @@ export default function TeknikerOppdragDetailPage() {
                               Rapport sendt {new Date(unit.reportSentAt).toLocaleDateString('nb-NO')}
                             </div>
                           ) : (
-                            <Button
-                              size="sm"
-                              fullWidth
-                              variant="secondary"
-                              onClick={() => handleSendReport(unit)}
-                              isLoading={sendingReport === unit.id}
-                            >
-                              <Send className="h-3.5 w-3.5" />
-                              Send rapport til kunde
-                            </Button>
+                            <div className="space-y-2">
+                              {!getUnitEmail(unit) ? (
+                                <Input
+                                  label="E-post til kunde"
+                                  type="email"
+                                  placeholder="kunde@example.no"
+                                  value={manualEmails[unit.id] || ''}
+                                  onChange={(e) => setManualEmails((prev) => ({ ...prev, [unit.id]: e.target.value }))}
+                                />
+                              ) : (
+                                <p className="text-xs text-gray-500">Sendes til: {getUnitEmail(unit)}</p>
+                              )}
+                              <Button
+                                size="sm"
+                                fullWidth
+                                variant="secondary"
+                                onClick={() => handleSendReport(unit)}
+                                isLoading={sendingReport === unit.id}
+                                disabled={!getUnitEmail(unit) && !manualEmails[unit.id]?.trim()}
+                              >
+                                <Send className="h-3.5 w-3.5" />
+                                Send rapport til kunde
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1128,6 +1203,26 @@ export default function TeknikerOppdragDetailPage() {
             <Button fullWidth onClick={handleComplete} isLoading={completing}>
               <CheckCircle className="h-4 w-4" />
               Fullfør oppdrag
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete/cancel confirmation modal */}
+      <Modal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} title={workOrder.status === 'pagaar' ? 'Avbryt oppdrag?' : 'Slett oppdrag?'}>
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            {workOrder.status === 'pagaar'
+              ? <>Er du sikker på at du vil avbryte oppdraget for <span className="font-semibold">{workOrder.organization.name}</span>? Alt arbeid som ikke er lagret vil gå tapt.</>
+              : <>Er du sikker på at du vil slette oppdraget for <span className="font-semibold">{workOrder.organization.name}</span>?</>
+            }
+          </p>
+          <div className="flex gap-3">
+            <Button fullWidth variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
+              Nei, behold
+            </Button>
+            <Button fullWidth variant="danger" onClick={handleDeleteOrder} isLoading={deleting}>
+              {workOrder.status === 'pagaar' ? 'Avbryt oppdrag' : 'Slett oppdrag'}
             </Button>
           </div>
         </div>

@@ -59,6 +59,15 @@ export default function KartPage() {
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [showCallbackPicker, setShowCallbackPicker] = useState(false);
 
+  // Work order states
+  const [teknikere, setTeknikere] = useState<{ id: string; name: string }[]>([]);
+  const [showCreateWorkOrder, setShowCreateWorkOrder] = useState(false);
+  const [woSelectedTechnician, setWoSelectedTechnician] = useState('');
+  const [woSelectedDate, setWoSelectedDate] = useState<Date | null>(null);
+  const [woSelectedTime, setWoSelectedTime] = useState<string | null>(null);
+  const [woNotes, setWoNotes] = useState('');
+  const [woCreating, setWoCreating] = useState(false);
+
   // Book meeting state
   const [bookSelectedDate, setBookSelectedDate] = useState<Date | null>(null);
   const [bookSelectedTime, setBookSelectedTime] = useState<string | null>(null);
@@ -83,6 +92,10 @@ export default function KartPage() {
 
   const [loggingResult, setLoggingResult] = useState(false);
 
+  // Delete org state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   // Manual address state
   const [showAddAddress, setShowAddAddress] = useState(false);
   const [manualAddress, setManualAddress] = useState('');
@@ -97,16 +110,19 @@ export default function KartPage() {
   const fetchData = useCallback(async () => {
     if (!userId) return;
     try {
-      const [orgRes, callRes, userRes] = await Promise.all([
+      const [orgRes, callRes, userRes, techRes] = await Promise.all([
         fetch(`/api/organizations?limit=500&assignedTo=${userId}`),
         fetch('/api/calls'),
         fetch('/api/users?role=FELTSELGER'),
+        fetch('/api/users?role=TEKNIKER'),
       ]);
       const orgData = await orgRes.json();
       const callData = await callRes.json();
       const userData = await userRes.json();
+      const techData = await techRes.json();
 
       setFeltselgere((userData.users || []).map((u: any) => ({ id: u.id, name: u.name })));
+      setTeknikere((techData.users || []).map((u: any) => ({ id: u.id, name: u.name })));
       const orgs = orgData.organizations || [];
       setOrganizations(orgs);
 
@@ -144,14 +160,17 @@ export default function KartPage() {
         mote_booket: 0,
         nei: 0,
         ikke_kontaktet: 0,
+        venter_tekniker: 0,
+        rens_pagaar: 0,
+        fullfort: 0,
       };
 
       for (const org of orgs) {
         // Org status takes priority for later stages
-        if (org.status === 'besok_pagaar') { markers[org.id] = 'besok_pagaar'; continue; }
-        if (org.status === 'venter_tekniker') { markers[org.id] = 'venter_tekniker'; continue; }
-        if (org.status === 'rens_pagaar') { markers[org.id] = 'rens_pagaar'; continue; }
-        if (org.status === 'fullfort') { markers[org.id] = 'fullfort'; continue; }
+        if (org.status === 'besok_pagaar') { markers[org.id] = 'besok_pagaar'; counts['venter_tekniker']++; continue; }
+        if (org.status === 'venter_tekniker') { markers[org.id] = 'venter_tekniker'; counts['venter_tekniker']++; continue; }
+        if (org.status === 'rens_pagaar') { markers[org.id] = 'rens_pagaar'; counts['rens_pagaar']++; continue; }
+        if (org.status === 'fullfort') { markers[org.id] = 'fullfort'; counts['fullfort']++; continue; }
 
         const markerType = latestCallPerOrg[org.id] || 'ikke_kontaktet';
         markers[org.id] = markerType;
@@ -409,6 +428,68 @@ export default function KartPage() {
     setShowBookMeeting(true);
   };
 
+  // ── Create work order ──
+  const handleOpenCreateWorkOrder = () => {
+    const userRoles: string[] = (session?.user as any)?.roles || [];
+    const isTechnician = userRoles.includes('TEKNIKER');
+    setWoSelectedTechnician(isTechnician ? userId : teknikere[0]?.id || '');
+    setWoSelectedDate(null);
+    setWoSelectedTime(null);
+    setWoNotes('');
+    setShowCreateWorkOrder(true);
+  };
+
+  const handleDeleteOrg = async () => {
+    if (!selectedOrg) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/organizations/${selectedOrg.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      toast.success('Adresse fjernet');
+      setShowDeleteConfirm(false);
+      setSelectedOrg(null);
+      fetchData();
+    } catch {
+      toast.error('Kunne ikke fjerne adresse');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleCreateWorkOrder = async () => {
+    if (!selectedOrg || !woSelectedTechnician || !woSelectedDate || !woSelectedTime) {
+      toast.error('Velg tekniker, dato og tid');
+      return;
+    }
+
+    setWoCreating(true);
+    try {
+      const dateStr = format(woSelectedDate, 'yyyy-MM-dd');
+      const scheduledAt = `${dateStr}T${woSelectedTime}:00`;
+
+      const res = await fetch('/api/work-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationId: selectedOrg.id,
+          technicianId: woSelectedTechnician,
+          scheduledAt,
+          notes: woNotes.trim() || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error();
+
+      toast.success('Oppdrag opprettet!');
+      setShowCreateWorkOrder(false);
+      setSelectedOrg(null);
+      fetchData();
+    } catch {
+      toast.error('Kunne ikke opprette oppdrag');
+    } finally {
+      setWoCreating(false);
+    }
+  };
+
   // ── Add manual address ──
   const handleAddAddress = async () => {
     if (!manualAddress.trim()) {
@@ -473,6 +554,8 @@ export default function KartPage() {
     { id: 'callback', label: 'Callback', count: filterCounts.callback || 0 },
     { id: 'mail_sendt', label: 'Mail sendt', count: filterCounts.mail_sendt || 0 },
     { id: 'mote_booket', label: 'Booket', count: filterCounts.mote_booket || 0 },
+    { id: 'venter_tekniker', label: 'Oppdrag', count: filterCounts.venter_tekniker || 0 },
+    { id: 'fullfort', label: 'Fullført', count: filterCounts.fullfort || 0 },
   ];
 
   if (loading) return <LoadingSpinner />;
@@ -531,6 +614,8 @@ export default function KartPage() {
             onSms={openSmsModal}
             onEmail={openEmailModal}
             onNotes={openNotesModal}
+            onCreateWorkOrder={handleOpenCreateWorkOrder}
+            onDelete={() => setShowDeleteConfirm(true)}
             loggingResult={loggingResult}
           />
         )}
@@ -797,6 +882,87 @@ export default function KartPage() {
           >
             Legg til adresse
           </Button>
+        </div>
+      </Modal>
+
+      {/* ── Create work order modal ── */}
+      <Modal isOpen={showCreateWorkOrder} onClose={() => setShowCreateWorkOrder(false)} title="Opprett oppdrag" size="lg">
+        <div className="space-y-5">
+          {/* Technician dropdown */}
+          <div>
+            <label className="label">Tekniker</label>
+            <select
+              value={woSelectedTechnician}
+              onChange={(e) => setWoSelectedTechnician(e.target.value)}
+              className="input-field w-full"
+            >
+              <option value="">Velg tekniker</option>
+              {teknikere.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}{t.id === userId ? ' (meg)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Availability-based date/time picker */}
+          {woSelectedTechnician && (
+            <AvailableSlotPicker
+              userId={woSelectedTechnician}
+              onSelect={(date, time) => {
+                setWoSelectedDate(new Date(date + 'T12:00:00'));
+                setWoSelectedTime(time);
+              }}
+              selectedDate={woSelectedDate ? format(woSelectedDate, 'yyyy-MM-dd') : null}
+              selectedTime={woSelectedTime}
+            />
+          )}
+          {!woSelectedTechnician && (
+            <p className="text-sm text-gray-400 text-center py-4">
+              Velg tekniker for å se ledige tider
+            </p>
+          )}
+
+          {/* Notes */}
+          <div>
+            <label className="label">Notat (valgfritt)</label>
+            <textarea
+              value={woNotes}
+              onChange={(e) => setWoNotes(e.target.value)}
+              rows={2}
+              placeholder="F.eks. tilgang via bakdør, ring først..."
+              className="input-field w-full resize-none"
+            />
+          </div>
+
+          {/* Confirm */}
+          <Button
+            fullWidth
+            onClick={handleCreateWorkOrder}
+            isLoading={woCreating}
+            disabled={!woSelectedDate || !woSelectedTime || !woSelectedTechnician}
+          >
+            {woSelectedDate && woSelectedTime
+              ? `Opprett oppdrag ${format(woSelectedDate, 'EEEE d. MMMM', { locale: nb })} kl ${woSelectedTime}`
+              : 'Velg dato og tid'}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* ── Delete confirmation modal ── */}
+      <Modal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} title="Fjerne adresse?">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Er du sikker på at du vil fjerne <span className="font-semibold">{selectedOrg?.name}</span> fra kartet? All historikk knyttet til denne adressen vil bli slettet.
+          </p>
+          <div className="flex gap-3">
+            <Button fullWidth variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
+              Avbryt
+            </Button>
+            <Button fullWidth variant="danger" onClick={handleDeleteOrg} isLoading={deleting}>
+              Fjern
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

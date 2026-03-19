@@ -2,6 +2,8 @@ interface ReportUnit {
   dwellingUnit: {
     unitNumber: string;
     residentName: string | null;
+    residentPhone: string | null;
+    residentEmail: string | null;
   };
   productName: string | null;
   price: number;
@@ -18,112 +20,150 @@ interface ReportData {
   organizationName: string;
   organizationAddress: string;
   technicianName: string;
+  technicianPhone: string;
+  technicianEmail: string;
   completedDate: string;
   units: ReportUnit[];
 }
 
-function parseChecklist(raw: any): { id: number; label: string; checked: boolean }[] {
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw === 'string') {
-    try { return JSON.parse(raw); } catch { return []; }
-  }
-  return [];
+interface GreetingData {
+  residentName: string | null;
+  organizationName: string;
+  completedDate: string;
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('nb-NO', { style: 'currency', currency: 'NOK', minimumFractionDigits: 0 }).format(amount);
-}
-
-export function generateReportHtml(data: ReportData, baseUrl: string): string {
-  const nextCleaning = new Date();
-  nextCleaning.setFullYear(nextCleaning.getFullYear() + 3);
-  const nextCleaningStr = nextCleaning.toLocaleDateString('nb-NO', { year: 'numeric', month: 'long' });
-
-  const unitsHtml = data.units.map((unit) => {
-    const checklist = parseChecklist(unit.checklist);
-    const checklistHtml = checklist.map((item) => `
-      <tr>
-        <td style="padding: 4px 8px; border-bottom: 1px solid #eee;">
-          ${item.checked ? '&#9989;' : '&#10060;'} ${item.label}
-        </td>
-      </tr>
-    `).join('');
-
-    const airHtml = unit.airBefore != null && unit.airAfter != null ? `
-      <div style="margin: 12px 0; padding: 12px; background: #f0f9ff; border-radius: 8px;">
-        <strong>Luftmålinger:</strong><br>
-        F&oslash;r: ${unit.airBefore} l/s &rarr; Etter: ${unit.airAfter} l/s
-        ${unit.airAfter > unit.airBefore ? ` <span style="color: #16a34a; font-weight: bold;">(+${Math.round(((unit.airAfter - unit.airBefore) / unit.airBefore) * 100)}%)</span>` : ''}
-      </div>
-    ` : '';
-
-    const photosHtml = (unit.photoBeforeUrl || unit.photoAfterUrl) ? `
-      <div style="margin: 12px 0; display: flex; gap: 12px;">
-        ${unit.photoBeforeUrl ? `
-          <div style="flex: 1;">
-            <p style="font-size: 12px; color: #666; margin-bottom: 4px;">F&oslash;r:</p>
-            <img src="${baseUrl}${unit.photoBeforeUrl}" alt="Før" style="width: 100%; max-width: 300px; border-radius: 8px;" />
-          </div>
-        ` : ''}
-        ${unit.photoAfterUrl ? `
-          <div style="flex: 1;">
-            <p style="font-size: 12px; color: #666; margin-bottom: 4px;">Etter:</p>
-            <img src="${baseUrl}${unit.photoAfterUrl}" alt="Etter" style="width: 100%; max-width: 300px; border-radius: 8px;" />
-          </div>
-        ` : ''}
-      </div>
-    ` : '';
-
-    return `
-      <div style="margin-bottom: 24px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px;">
-        <h3 style="margin: 0 0 8px; font-size: 16px;">
-          Enhet ${unit.dwellingUnit.unitNumber}
-          ${unit.dwellingUnit.residentName ? ` – ${unit.dwellingUnit.residentName}` : ''}
-        </h3>
-        <p style="margin: 0 0 12px; color: #666;">
-          ${unit.productName || '–'} · ${formatCurrency(unit.price)}
-          ${unit.paymentPlanMonths && unit.paymentPlanMonths > 0 ? ` · ${unit.paymentPlanMonths} mnd` : ''}
-        </p>
-
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
-          <thead>
-            <tr><th style="text-align: left; padding: 4px 8px; border-bottom: 2px solid #ddd; font-size: 13px; color: #666;">Sjekkliste</th></tr>
-          </thead>
-          <tbody>${checklistHtml}</tbody>
-        </table>
-
-        ${airHtml}
-        ${photosHtml}
-      </div>
-    `;
-  }).join('');
-
+export function generateGreetingHtml(data: GreetingData): string {
   return `
     <!DOCTYPE html>
     <html lang="no">
     <head><meta charset="UTF-8"></head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #111;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <h1 style="font-size: 22px; margin: 0;">Rapport – Ventilasjonsrens</h1>
-        <p style="color: #666; margin: 4px 0;">${data.completedDate}</p>
+      <p>Hei,</p>
+      <p>Takk for at du valgte Godt Vedlikehold! Her er rapporten fra ventilasjonsrensen som ble gjennomf&oslash;rt ${data.completedDate}.</p>
+      <p>Med vennlig hilsen,<br>Godt Vedlikehold</p>
+    </body>
+    </html>
+  `;
+}
+
+export function generateReportHtml(data: ReportData, baseUrl: string): string {
+  const darkBlue = '#1e2a3a';
+  const lightGray = '#f5f5f5';
+
+  const unitsHtml = data.units.map((unit) => {
+    const customerName = unit.dwellingUnit.residentName || data.organizationName;
+    const customerPhone = unit.dwellingUnit.residentPhone || '';
+    const customerEmail = unit.dwellingUnit.residentEmail || '';
+
+    // Utført arbeid - fast liste
+    const workItems = [
+      'Rengjøring av tilluftskanaler',
+      'Rengjøring av avtrekkskanaler',
+      'Rens av ventiler og ventilrister',
+      'Kontroll av aggregat og vifter',
+    ];
+
+    const workHtml = workItems.map((item) => `
+      <li style="margin-bottom: 6px; color: #333;">${item}</li>
+    `).join('');
+
+    // Luftmålinger
+    const airHtml = (unit.airBefore != null || unit.airAfter != null) ? `
+      <div style="margin: 24px 0;">
+        <h3 style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: ${darkBlue}; margin: 0 0 12px;">Luftm&aring;linger</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            ${unit.airBefore != null ? `<td style="padding: 10px 16px; background: ${lightGray}; border-radius: 6px; width: 50%;"><span style="color: #666; font-size: 12px;">F&oslash;r:</span><br><strong style="font-size: 18px;">${unit.airBefore} l/s</strong></td>` : ''}
+            ${unit.airAfter != null ? `<td style="padding: 10px 16px; background: ${lightGray}; border-radius: 6px; width: 50%;"><span style="color: #666; font-size: 12px;">Etter:</span><br><strong style="font-size: 18px;">${unit.airAfter} l/s</strong>${unit.airBefore != null && unit.airAfter > unit.airBefore ? ` <span style="color: #16a34a; font-size: 13px; font-weight: bold;">(+${Math.round(((unit.airAfter - unit.airBefore) / unit.airBefore) * 100)}%)</span>` : ''}</td>` : ''}
+          </tr>
+        </table>
+      </div>
+    ` : '';
+
+    // Bilder
+    const photosHtml = (unit.photoBeforeUrl || unit.photoAfterUrl) ? `
+      <div style="margin: 24px 0;">
+        <h3 style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: ${darkBlue}; margin: 0 0 12px;">Dokumentasjon &mdash; f&oslash;r og etter</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="width: 50%; vertical-align: top; padding-right: 8px;">
+              <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin: 0 0 6px;">F&oslash;r rens</p>
+              ${unit.photoBeforeUrl ? `<img src="${baseUrl}${unit.photoBeforeUrl}" alt="Før rens" style="width: 100%; border-radius: 6px; border: 1px solid #e0e0e0;" />` : '<div style="height: 160px; background: #f0f0f0; border-radius: 6px; border: 1px solid #e0e0e0;"></div>'}
+            </td>
+            <td style="width: 50%; vertical-align: top; padding-left: 8px;">
+              <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin: 0 0 6px;">Etter rens</p>
+              ${unit.photoAfterUrl ? `<img src="${baseUrl}${unit.photoAfterUrl}" alt="Etter rens" style="width: 100%; border-radius: 6px; border: 1px solid #e0e0e0;" />` : '<div style="height: 160px; background: #f0f0f0; border-radius: 6px; border: 1px solid #e0e0e0;"></div>'}
+            </td>
+          </tr>
+        </table>
+      </div>
+    ` : '';
+
+    return `
+      <!-- Kundeinformasjon + Referanse -->
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+        <tr>
+          <td style="width: 55%; vertical-align: top; padding-right: 16px;">
+            <h3 style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: ${darkBlue}; margin: 0 0 10px;">Kundeinformasjon</h3>
+            <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px;">
+              <p style="margin: 0 0 4px; font-size: 14px;"><span style="color: #666;">Navn:</span> <strong>${customerName}</strong></p>
+              <p style="margin: 0 0 4px; font-size: 14px;"><span style="color: #666;">Adresse:</span> ${data.organizationAddress}</p>
+              ${customerPhone ? `<p style="margin: 0 0 4px; font-size: 14px;"><span style="color: #666;">Tlf:</span> ${customerPhone}</p>` : ''}
+              ${customerEmail ? `<p style="margin: 0; font-size: 14px;"><span style="color: #666;">E-post:</span> ${customerEmail}</p>` : ''}
+            </div>
+          </td>
+          <td style="width: 45%; vertical-align: top;">
+            <h3 style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: ${darkBlue}; margin: 0 0 10px;">Referanse</h3>
+            <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="color: #666; font-size: 14px; padding: 2px 0;">Dato:</td><td style="text-align: right; font-weight: 700; font-size: 14px;">${data.completedDate}</td></tr>
+                <tr><td style="color: #666; font-size: 14px; padding: 2px 0;">Deres ref:</td><td style="text-align: right; font-weight: 700; font-size: 14px;">${data.technicianName}</td></tr>
+                ${data.technicianPhone ? `<tr><td style="color: #666; font-size: 14px; padding: 2px 0;">Tlf:</td><td style="text-align: right; font-weight: 700; font-size: 14px;">${data.technicianPhone}</td></tr>` : ''}
+                ${data.technicianEmail ? `<tr><td style="color: #666; font-size: 14px; padding: 2px 0;">E-post:</td><td style="text-align: right; font-weight: 700; font-size: 14px;">${data.technicianEmail}</td></tr>` : ''}
+              </table>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Utført arbeid -->
+      <div style="margin-bottom: 24px;">
+        <h3 style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: ${darkBlue}; margin: 0 0 10px;">Utf&oslash;rt arbeid</h3>
+        <ul style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
+          ${workHtml}
+        </ul>
       </div>
 
-      <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-radius: 12px;">
-        <p style="margin: 0;"><strong>Adresse:</strong> ${data.organizationAddress}</p>
-        <p style="margin: 4px 0 0;"><strong>Sameie:</strong> ${data.organizationName}</p>
-        <p style="margin: 4px 0 0;"><strong>Tekniker:</strong> ${data.technicianName}</p>
+      ${airHtml}
+      ${photosHtml}
+    `;
+  }).join('<hr style="border: none; border-top: 1px solid #e0e0e0; margin: 32px 0;" />');
+
+  return `
+    <!DOCTYPE html>
+    <html lang="no">
+    <head><meta charset="UTF-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 700px; margin: 0 auto; padding: 0; color: #111; background: #ffffff;">
+
+      <!-- Header -->
+      <div style="padding: 24px 32px;">
+        <h2 style="margin: 0; font-size: 20px; color: ${darkBlue};">Godt Vedlikehold</h2>
+        <p style="margin: 2px 0 0; font-size: 12px; color: #888; font-style: italic;">Bedre inneklima, renere luft</p>
       </div>
 
-      ${unitsHtml}
-
-      <div style="margin-top: 24px; padding: 16px; background: #fffbeb; border-radius: 12px; text-align: center;">
-        <p style="margin: 0; font-size: 14px; color: #92400e;">
-          <strong>Anbefalt neste rens:</strong> ${nextCleaningStr}
-        </p>
+      <!-- Title banner -->
+      <div style="background: ${darkBlue}; padding: 18px 32px; margin-bottom: 28px;">
+        <h1 style="margin: 0; font-size: 22px; color: white; font-weight: 600;">Ventilasjonsrens rapport</h1>
       </div>
 
-      <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center; color: #999; font-size: 12px;">
-        <p>Denne rapporten er generert av Konvoi</p>
+      <!-- Content -->
+      <div style="padding: 0 32px 32px;">
+        ${unitsHtml}
+      </div>
+
+      <!-- Footer -->
+      <div style="padding: 16px 32px; border-top: 1px solid #e0e0e0; text-align: center; color: #999; font-size: 11px;">
+        <p style="margin: 0;">Godt Vedlikehold &mdash; Bedre inneklima, renere luft</p>
       </div>
     </body>
     </html>

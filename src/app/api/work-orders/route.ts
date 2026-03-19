@@ -8,7 +8,8 @@ const createWorkOrderSchema = z.object({
   organizationId: z.string(),
   technicianId: z.string(),
   scheduledAt: z.string(),
-  unitIds: z.array(z.string()),
+  unitIds: z.array(z.string()).optional(),
+  notes: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -61,15 +62,20 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'Ugyldig data' }, { status: 400 });
     }
-    const { organizationId, technicianId, scheduledAt, unitIds } = parsed.data;
+    const { organizationId, technicianId, scheduledAt, unitIds, notes } = parsed.data;
 
-    // Get dwelling units (sold or booked)
-    const units = await prisma.dwellingUnit.findMany({
-      where: { id: { in: unitIds }, visitStatus: { in: ['solgt', 'besok_booket'] } },
-    });
+    const hasUnitIds = unitIds && unitIds.length > 0;
 
-    if (units.length === 0) {
-      return NextResponse.json({ error: 'Ingen registrerte enheter funnet' }, { status: 400 });
+    // Get dwelling units (sold or booked) — only if unitIds provided
+    let units: any[] = [];
+    if (hasUnitIds) {
+      units = await prisma.dwellingUnit.findMany({
+        where: { id: { in: unitIds }, visitStatus: { in: ['solgt', 'besok_booket'] } },
+      });
+
+      if (units.length === 0) {
+        return NextResponse.json({ error: 'Ingen registrerte enheter funnet' }, { status: 400 });
+      }
     }
 
     const workOrder = await prisma.$transaction(async (tx) => {
@@ -78,23 +84,63 @@ export async function POST(req: NextRequest) {
           organizationId,
           technicianId,
           scheduledAt: new Date(scheduledAt),
+          notes: notes || null,
         },
       });
 
-      // Create work order units - technician fills in product/price later
-      for (const unit of units) {
-        await tx.workOrderUnit.create({
-          data: {
-            workOrderId: wo.id,
-            dwellingUnitId: unit.id,
-            orderType: unit.orderType || 'ventilasjonsrens',
-            productName: unit.product || null,
-            price: unit.price || 0,
-            paymentMethod: unit.paymentMethod || null,
-            paymentPlanMonths: unit.paymentPlanMonths || null,
-            checklist: JSON.stringify(defaultChecklist),
-          },
+      if (hasUnitIds) {
+        // Create work order units from existing dwelling units
+        for (const unit of units) {
+          await tx.workOrderUnit.create({
+            data: {
+              workOrderId: wo.id,
+              dwellingUnitId: unit.id,
+              orderType: unit.orderType || 'ventilasjonsrens',
+              productName: unit.product || null,
+              price: unit.price || 0,
+              paymentMethod: unit.paymentMethod || null,
+              paymentPlanMonths: unit.paymentPlanMonths || null,
+              checklist: JSON.stringify(defaultChecklist),
+            },
+          });
+        }
+      } else {
+        // No unitIds provided (e.g. created from møtebooker map) — auto-create dwelling units
+        const org = await tx.organization.findUnique({ where: { id: organizationId }, select: { numUnits: true } });
+        const count = org?.numUnits || 1;
+
+        // Check if org already has dwelling units we can reuse
+        const existingUnits = await tx.dwellingUnit.findMany({
+          where: { organizationId },
+          orderBy: { unitNumber: 'asc' },
         });
+
+        const dwellingUnits = existingUnits.length > 0
+          ? existingUnits
+          : await Promise.all(
+              Array.from({ length: count }, (_, i) =>
+                tx.dwellingUnit.create({
+                  data: {
+                    organizationId,
+                    unitNumber: String(i + 1),
+                    visitStatus: 'ikke_besokt',
+                  },
+                })
+              )
+            );
+
+        for (const du of dwellingUnits) {
+          await tx.workOrderUnit.create({
+            data: {
+              workOrderId: wo.id,
+              dwellingUnitId: du.id,
+              orderType: 'ventilasjonsrens',
+              price: 0,
+              checklist: JSON.stringify(defaultChecklist),
+            },
+          });
+        }
+        units = dwellingUnits;
       }
 
       // Update org status
@@ -105,21 +151,21 @@ export async function POST(req: NextRequest) {
 
       // Get technician name for chat message
       const tech = await tx.user.findUnique({ where: { id: technicianId }, select: { name: true } });
-      const org = await tx.organization.findUnique({ where: { id: organizationId }, select: { name: true } });
+      const orgInfo = await tx.organization.findUnique({ where: { id: organizationId }, select: { name: true } });
 
       const schedDate = new Date(scheduledAt);
       const dateStr = schedDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' });
 
-      const totalPrice = units.reduce((sum, u) => sum + (u.price || 0), 0);
-
       // System chat message
+      const chatContent = `${userName} opprettet oppdrag – ${units.length} enheter. Tekniker ${tech?.name || 'ukjent'} booket til ${dateStr}`;
+
       await tx.chatMessage.create({
         data: {
           channelType: 'organization',
           channelId: organizationId,
-          senderId: technicianId || (session.user as any).id,
+          senderId: (session.user as any).id,
           organizationId,
-          content: `${userName} registrerte ${units.length} enheter. Tekniker ${tech?.name || 'ukjent'} booket til ${dateStr}`,
+          content: chatContent,
           isSystem: true,
         },
       });
@@ -130,7 +176,7 @@ export async function POST(req: NextRequest) {
           data: {
             userId: technicianId,
             title: 'Nytt oppdrag tildelt',
-            message: `Du har fått et nytt oppdrag for ${org?.name} – ${units.length} enheter, ${dateStr}`,
+            message: `Du har fått et nytt oppdrag for ${orgInfo?.name} – ${units.length} enheter, ${dateStr}`,
             type: 'info',
             linkUrl: '/tekniker/oppdrag',
           },

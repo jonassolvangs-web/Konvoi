@@ -79,9 +79,15 @@ function getMarkerType(org: Organization, orgMarkerTypes?: Record<string, string
 }
 
 export default function MapView({ organizations, statusFilter, onSelectOrg, orgMarkerTypes }: MapViewProps) {
-  const filtered = organizations.filter(
-    (org) => org.latitude && org.longitude && (statusFilter === 'alle' || org.status === statusFilter || (orgMarkerTypes && orgMarkerTypes[org.id] === statusFilter))
-  );
+  const filtered = organizations.filter((org) => {
+    if (!org.latitude || !org.longitude) return false;
+    if (statusFilter === 'alle') return true;
+    if (org.status === statusFilter) return true;
+    if (orgMarkerTypes && orgMarkerTypes[org.id] === statusFilter) return true;
+    // Group besok_pagaar under venter_tekniker filter
+    if (statusFilter === 'venter_tekniker' && (org.status === 'besok_pagaar' || org.status === 'rens_pagaar')) return true;
+    return false;
+  });
 
   return (
     <MapContainer

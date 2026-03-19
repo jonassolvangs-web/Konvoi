@@ -1,5 +1,6 @@
 import {
   Map,
+  MapPinned,
   List,
   FileText,
   MessageSquare,
@@ -43,6 +44,7 @@ export const adminTabs = [
   { id: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { id: 'ansatte', label: 'Ansatte', href: '/admin/ansatte', icon: Users },
   { id: 'adresser', label: 'Adresser', href: '/admin/adresser', icon: Building2 },
+  { id: 'territorier', label: 'Revir', href: '/admin/territorier', icon: MapPinned },
   { id: 'innstillinger', label: 'Innstillinger', href: '/admin/innstillinger', icon: Settings },
   { id: 'profil', label: 'Profil', href: '/admin/profil', icon: User },
 ];
@@ -103,6 +105,19 @@ export const DEFAULT_OFFICE_LOCATION = {
   lon: 10.7522,
   address: 'Oslo sentrum',
 };
+
+// ─── Territory colors (polygon fill) ────────────────
+
+export const TERRITORY_COLORS = [
+  '#3B82F6', // blue
+  '#10B981', // emerald
+  '#F59E0B', // amber
+  '#EF4444', // red
+  '#8B5CF6', // violet
+  '#EC4899', // pink
+  '#06B6D4', // cyan
+  '#F97316', // orange
+];
 
 // ─── Default settings keys ──────────────────────────
 

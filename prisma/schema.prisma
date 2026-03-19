@@ -34,6 +34,7 @@ model User {
   notifications         Notification[]
   availability          Availability[]
   pushSubscriptions     PushSubscription[]
+  territories           Territory[]
 
   @@map("users")
 }
@@ -318,6 +319,19 @@ model PushSubscription {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("push_subscriptions")
+}
+
+model Territory {
+  id           String   @id @default(cuid())
+  name         String
+  color        String
+  polygon      Json     // GeoJSON Polygon geometry { type: "Polygon", coordinates: [[[lng, lat], ...]] }
+  assignedToId String?  @map("assigned_to_id")
+  assignedTo   User?    @relation(fields: [assignedToId], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("territories")
 }
 
 model Setting {
