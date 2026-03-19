@@ -767,20 +767,28 @@ export default function TeknikerOppdragDetailPage() {
                       <div>
                         <label className="text-xs font-medium text-gray-600 mb-1.5 block">Betaling</label>
                         <div className="grid grid-cols-2 gap-2">
-                          {['faktura', 'vipps'].map((method) => (
-                            <button
-                              key={method}
-                              onClick={() => {
-                                setChangeUnitId(unit.id);
-                                setChangePaymentMethod(method);
-                              }}
-                              className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                                changeUnitId === unit.id && changePaymentMethod === method ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
-                              }`}
-                            >
-                              <span className="text-sm font-medium">{method === 'faktura' ? 'Faktura' : 'Vipps'}</span>
-                            </button>
-                          ))}
+                          <button
+                            onClick={() => {
+                              setChangeUnitId(unit.id);
+                              setChangePaymentMethod('faktura');
+                            }}
+                            className={`py-3 px-2 rounded-xl text-center transition-colors ${
+                              changeUnitId === unit.id && changePaymentMethod === 'faktura' ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <span className="text-sm font-medium">Faktura</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setChangeUnitId(unit.id);
+                              setChangePaymentMethod('vipps');
+                            }}
+                            className={`py-3 px-2 rounded-xl flex items-center justify-center gap-2 transition-colors ${
+                              changeUnitId === unit.id && changePaymentMethod === 'vipps' ? 'bg-[#FF5B24] text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <img src="/icons/vipps.svg" alt="Vipps" className="h-5" />
+                          </button>
                         </div>
                       </div>
 
@@ -1166,17 +1174,22 @@ export default function TeknikerOppdragDetailPage() {
           <div>
             <label className="label">Betaling</label>
             <div className="grid grid-cols-2 gap-2">
-              {['faktura', 'vipps'].map((method) => (
-                <button
-                  key={method}
-                  onClick={() => setChangePaymentMethod(method)}
-                  className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                    changePaymentMethod === method ? 'bg-black text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <span className="text-sm font-medium">{method === 'faktura' ? 'Faktura' : 'Vipps'}</span>
-                </button>
-              ))}
+              <button
+                onClick={() => setChangePaymentMethod('faktura')}
+                className={`py-3 px-2 rounded-xl text-center transition-colors ${
+                  changePaymentMethod === 'faktura' ? 'bg-black text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <span className="text-sm font-medium">Faktura</span>
+              </button>
+              <button
+                onClick={() => setChangePaymentMethod('vipps')}
+                className={`py-3 px-2 rounded-xl flex items-center justify-center gap-2 transition-colors ${
+                  changePaymentMethod === 'vipps' ? 'bg-[#FF5B24] text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <img src="/icons/vipps.svg" alt="Vipps" className="h-5" />
+              </button>
             </div>
           </div>
 
