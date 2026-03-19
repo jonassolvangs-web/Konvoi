@@ -46,4 +46,6 @@ next-env.d.ts
 # uploads
 /public/uploads/*
 !/public/uploads/.gitkeep
-backend/.venv/
+backend/
+frontend/
+generate-demo.ts

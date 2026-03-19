@@ -431,7 +431,6 @@ export default function TeknikerOppdragDetailPage() {
           subject: `Rapport Ventilasjonsrens - ${workOrder.organization.address}`,
           html: greetingHtml,
           reportHtml,
-          attachment: true,
         }),
       });
       const emailResult = await emailRes.json();
