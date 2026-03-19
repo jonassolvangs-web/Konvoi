@@ -320,32 +320,58 @@ export default function TeknikerOppdragDetailPage() {
     }
   };
 
+  const compressImage = (file: File, maxSize = 1200, quality = 0.7): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = Math.round((height * maxSize) / width);
+              width = maxSize;
+            } else {
+              width = Math.round((width * maxSize) / height);
+              height = maxSize;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => reject(new Error('Kunne ikke lese bildet'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Kunne ikke lese filen'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handlePhotoUpload = async (unitId: string, type: 'before' | 'after', file: File) => {
     const key = `${type}-${unitId}`;
     setUploadingPhoto(key);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', type);
-      formData.append('unitId', unitId);
+      const dataUri = await compressImage(file);
 
-      const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-      const { url, error } = await uploadRes.json();
-      if (error) throw new Error(error);
-
-      // Save URL to unit
-      await fetch(`/api/work-orders/${id}`, {
+      const res = await fetch(`/api/work-orders/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           unitId,
-          [type === 'before' ? 'photoBeforeUrl' : 'photoAfterUrl']: url,
+          [type === 'before' ? 'photoBeforeUrl' : 'photoAfterUrl']: dataUri,
         }),
       });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+
       toast.success(`${type === 'before' ? 'Før' : 'Etter'}-bilde lastet opp`);
       fetchWorkOrder();
-    } catch {
-      toast.error('Kunne ikke laste opp bilde');
+    } catch (err: any) {
+      toast.error(err.message || 'Kunne ikke laste opp bilde');
     } finally {
       setUploadingPhoto(null);
     }
