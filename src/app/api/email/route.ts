@@ -8,20 +8,22 @@ const fromEmail = process.env.EMAIL_FROM || 'hei@godtvedlikehold.no';
 export async function POST(req: NextRequest) {
   try {
     await requireAuth();
-    const { to, subject, html, reportHtml } = await req.json();
+    const { to, subject, html, pdfBase64 } = await req.json();
 
     if (!to || !subject || !html) {
       return NextResponse.json({ error: 'Mangler to, subject eller html' }, { status: 400 });
     }
 
-    // Combine greeting + report into one email
-    const fullHtml = reportHtml ? `${html}<hr style="border:none;border-top:1px solid #e0e0e0;margin:24px 0;" />${reportHtml}` : html;
+    const attachments = pdfBase64
+      ? [{ filename: 'Rapport-Ventilasjonsrens.pdf', content: Buffer.from(pdfBase64, 'base64') }]
+      : undefined;
 
     const { data, error } = await resend.emails.send({
       from: `Godt Vedlikehold <${fromEmail}>`,
       to,
       subject,
-      html: fullHtml,
+      html,
+      attachments,
     });
 
     if (error) {

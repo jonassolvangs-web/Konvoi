@@ -381,6 +381,39 @@ export default function TeknikerOppdragDetailPage() {
     return unit.dwellingUnit.residentEmail || workOrder?.organization.chairmanEmail || null;
   };
 
+  const generatePdfInBrowser = async (htmlContent: string): Promise<string> => {
+    const html2pdf = (await import('html2pdf.js')).default;
+    const container = document.createElement('div');
+    container.innerHTML = htmlContent;
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.width = '700px';
+    document.body.appendChild(container);
+
+    try {
+      const pdfBlob: Blob = await html2pdf()
+        .set({
+          margin: [10, 10, 10, 10],
+          filename: 'rapport.pdf',
+          image: { type: 'jpeg', quality: 0.95 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        })
+        .from(container)
+        .outputPdf('blob');
+
+      const arrayBuffer = await pdfBlob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    } finally {
+      document.body.removeChild(container);
+    }
+  };
+
   const handleSendReport = async (unit: WorkOrderUnit) => {
     const email = getUnitEmail(unit) || manualEmails[unit.id]?.trim();
     if (!email) {
@@ -423,6 +456,9 @@ export default function TeknikerOppdragDetailPage() {
         completedDate,
       });
 
+      toast('Genererer PDF...', { icon: '📄' });
+      const pdfBase64 = await generatePdfInBrowser(reportHtml);
+
       const emailRes = await fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -430,7 +466,7 @@ export default function TeknikerOppdragDetailPage() {
           to: email,
           subject: `Rapport Ventilasjonsrens - ${workOrder.organization.address}`,
           html: greetingHtml,
-          reportHtml,
+          pdfBase64,
         }),
       });
       const emailResult = await emailRes.json();
