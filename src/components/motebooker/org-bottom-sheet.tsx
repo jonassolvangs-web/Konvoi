@@ -98,10 +98,15 @@ export default function OrgBottomSheet({
           onTouchEnd={handleTouchEnd}
         >
           <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-1" />
-          <div className="flex px-4">
+          <div className="flex justify-between px-4">
             <button onClick={onClose} className="p-1 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
               <X className="h-3.5 w-3.5 text-gray-600" />
             </button>
+            {onDelete && (
+              <button onClick={onDelete} className="p-1 rounded-full bg-gray-100 hover:bg-red-100 transition-colors">
+                <Trash2 className="h-3.5 w-3.5 text-red-400" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -252,16 +257,6 @@ export default function OrgBottomSheet({
             ))}
           </div>
 
-          {/* Delete button */}
-          {onDelete && (
-            <button
-              onClick={onDelete}
-              className="flex items-center justify-center gap-1.5 w-full py-2 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Fjern fra kartet
-            </button>
-          )}
         </div>
       </div>
     </div>
