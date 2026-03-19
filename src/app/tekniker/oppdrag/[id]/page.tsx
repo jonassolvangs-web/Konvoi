@@ -428,7 +428,7 @@ export default function TeknikerOppdragDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: email,
-          subject: `Rapport – Ventilasjonsrens ${workOrder.organization.address}`,
+          subject: `Rapport Ventilasjonsrens - ${workOrder.organization.address}`,
           html: greetingHtml,
           reportHtml,
           attachment: true,

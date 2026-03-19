@@ -33,14 +33,21 @@ interface GreetingData {
 }
 
 export function generateGreetingHtml(data: GreetingData): string {
+  const greeting = data.residentName ? `Hei ${data.residentName},` : 'Hei,';
   return `
     <!DOCTYPE html>
     <html lang="no">
     <head><meta charset="UTF-8"></head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #111;">
-      <p>Hei,</p>
-      <p>Takk for at du valgte Godt Vedlikehold! Her er rapporten fra ventilasjonsrensen som ble gjennomf&oslash;rt ${data.completedDate}.</p>
-      <p>Med vennlig hilsen,<br>Godt Vedlikehold</p>
+      <p>${greeting}</p>
+      <p>Takk for at du valgte Godt Vedlikehold! Her er rapporten fra ventilasjonsrensen som ble utf&oslash;rt ${data.completedDate}.</p>
+      <br>
+      <p style="margin: 0;">Med vennlig hilsen,</p>
+      <p style="margin: 4px 0 0; font-weight: 600;">Godt Vedlikehold</p>
+      <p style="margin: 2px 0 0; font-size: 13px; color: #555;">
+        <a href="mailto:hei@godtvedlikehold.no" style="color: #3B82F6; text-decoration: none;">hei@godtvedlikehold.no</a><br>
+        <a href="https://www.godtvedlikehold.no" style="color: #3B82F6; text-decoration: none;">www.godtvedlikehold.no</a>
+      </p>
     </body>
     </html>
   `;
