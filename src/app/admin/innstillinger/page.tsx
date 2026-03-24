@@ -210,6 +210,7 @@ export default function InnstillingerPage() {
               </p>
             )}
             <Input label="Rens-intervall (år)" type="number" value={settings[SETTING_KEYS.CLEANING_INTERVAL_YEARS] || '3'} onChange={(e) => updateSetting(SETTING_KEYS.CLEANING_INTERVAL_YEARS, e.target.value)} />
+            <Input label="Provisjon per salg (kr)" type="number" value={settings[SETTING_KEYS.SELLER_COMMISSION_PER_UNIT] || '0'} onChange={(e) => updateSetting(SETTING_KEYS.SELLER_COMMISSION_PER_UNIT, e.target.value)} />
           </div>
         </Card>
       </div>

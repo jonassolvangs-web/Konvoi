@@ -18,6 +18,24 @@ export interface PeriodStats {
   active_sellers: number;
 }
 
+export interface SellerPeriodStats {
+  sales: number;
+  visits: number;
+  revenue: number;
+  commission: number;
+  conversion_rate: number;
+}
+
+export interface SellerStats {
+  commission_per_unit: number;
+  period: {
+    today: SellerPeriodStats;
+    week: SellerPeriodStats;
+    month: SellerPeriodStats;
+  };
+  product_breakdown: ProductBreakdown[];
+}
+
 export interface DashboardStats {
   revenue_today: number;
   revenue_week: number;

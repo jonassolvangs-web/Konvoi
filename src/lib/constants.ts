@@ -13,6 +13,7 @@ import {
   Users,
   Building2,
   Settings,
+  BarChart3,
 } from 'lucide-react';
 
 // ─── Tab configurations per role ────────────────────
@@ -28,6 +29,7 @@ export const motebookerTabs = [
 export const feltselgerTabs = [
   { id: 'besok', label: 'Mine besøk', href: '/feltselger/besok', icon: ClipboardList },
   { id: 'dor-til-dor', label: 'Dør-til-dør', href: '/feltselger/dor-til-dor', icon: DoorOpen },
+  { id: 'statistikk', label: 'Statistikk', href: '/feltselger/statistikk', icon: BarChart3 },
   { id: 'kalender', label: 'Kalender', href: '/feltselger/kalender', icon: Calendar },
   { id: 'chat', label: 'Chat', href: '/feltselger/chat', icon: MessageSquare },
   { id: 'profil', label: 'Profil', href: '/feltselger/profil', icon: User },
@@ -126,4 +128,5 @@ export const SETTING_KEYS = {
   COMPANY_PHONE: 'company_phone',
   COMPANY_EMAIL: 'company_email',
   CLEANING_INTERVAL_YEARS: 'cleaning_interval_years',
+  SELLER_COMMISSION_PER_UNIT: 'seller_commission_per_unit',
 };
