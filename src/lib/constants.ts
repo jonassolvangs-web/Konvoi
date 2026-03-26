@@ -68,7 +68,6 @@ export const defaultProducts = [
   { name: 'Ventilasjonsrens Premium', price: 5990 },
   { name: 'Service Standard', price: 1990 },
   { name: 'Service Pluss', price: 2990 },
-  { name: 'Filterbytte', price: 990 },
 ];
 
 export const productsByOrderType: Record<string, { name: string; label: string; price: number }[]> = {
@@ -79,20 +78,12 @@ export const productsByOrderType: Record<string, { name: string; label: string; 
   ],
   service: [
     { name: 'Ny reim', label: 'Ny reim', price: 800 },
-    { name: 'Filterbytte', label: 'Filterbytte', price: 990 },
     { name: 'Service Standard', label: 'Service Standard', price: 1990 },
     { name: 'Service Pluss', label: 'Service Pluss', price: 2990 },
   ],
 };
 
 export const paymentPlanOptions = [0, 3, 6];
-
-// ─── Filter subscription prices ─────────────────────
-
-export const filterSubscriptionPrices = {
-  6: 149,
-  12: 129,
-};
 
 // ─── Office location (default: Oslo sentrum) ────────
 

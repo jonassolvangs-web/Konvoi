@@ -98,12 +98,6 @@ export default function TeknikerOppdragDetailPage() {
   const [airBefore, setAirBefore] = useState('');
   const [airAfter, setAirAfter] = useState('');
 
-  // Filter subscription state
-  const [showFilterSub, setShowFilterSub] = useState(false);
-  const [filterSubUnitId, setFilterSubUnitId] = useState('');
-  const [filterSubMonths, setFilterSubMonths] = useState(12);
-  const [savingFilterSub, setSavingFilterSub] = useState(false);
-
   // Change order state
   const [showChangeOrder, setShowChangeOrder] = useState(false);
   const [changeUnitId, setChangeUnitId] = useState('');
@@ -288,35 +282,9 @@ export default function TeknikerOppdragDetailPage() {
         }),
       });
       toast.success('Enhet fullført');
-      setFilterSubUnitId(unitId);
-      setShowFilterSub(true);
       fetchWorkOrder();
     } catch {
       toast.error('Kunne ikke fullføre enhet');
-    }
-  };
-
-  const handleCreateFilterSub = async () => {
-    if (!workOrder) return;
-    setSavingFilterSub(true);
-    const priceMap: Record<number, number> = { 6: 149, 12: 129 };
-    try {
-      await fetch('/api/filter-subscriptions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dwellingUnitId: filterSubUnitId,
-          organizationId: workOrder.organization.id,
-          months: filterSubMonths,
-          pricePerMonth: priceMap[filterSubMonths] || 129,
-        }),
-      });
-      toast.success('Filteravtale opprettet');
-      setShowFilterSub(false);
-    } catch {
-      toast.error('Kunne ikke opprette filteravtale');
-    } finally {
-      setSavingFilterSub(false);
     }
   };
 
@@ -1102,39 +1070,6 @@ export default function TeknikerOppdragDetailPage() {
           );
         })}
       </div>
-
-      {/* Filter subscription modal */}
-      <Modal isOpen={showFilterSub} onClose={() => setShowFilterSub(false)} title="Tilby filteravtale?">
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Vil du tilby filterabonnement til denne enheten?
-          </p>
-          <div className="flex gap-2">
-            {[6, 12].map((m) => (
-              <button
-                key={m}
-                onClick={() => setFilterSubMonths(m)}
-                className={`flex-1 py-3 rounded-xl text-center transition-colors ${
-                  filterSubMonths === m
-                    ? 'bg-black text-white'
-                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <span className="text-sm font-medium block">{m} mnd</span>
-                <span className="text-xs block mt-0.5">{m === 6 ? '149' : '129'} kr/mnd</span>
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" fullWidth onClick={() => setShowFilterSub(false)}>
-              Hopp over
-            </Button>
-            <Button fullWidth onClick={handleCreateFilterSub} isLoading={savingFilterSub}>
-              Opprett avtale
-            </Button>
-          </div>
-        </div>
-      </Modal>
 
       {/* Change order modal */}
       <Modal isOpen={showChangeOrder} onClose={() => setShowChangeOrder(false)} title="Endre ordre">

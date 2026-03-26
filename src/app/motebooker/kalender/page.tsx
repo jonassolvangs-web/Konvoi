@@ -66,7 +66,6 @@ const PRODUCTS: Record<string, { name: string; price: number }[]> = {
   ],
   service: [
     { name: 'Ny reim', price: 800 },
-    { name: 'Filterbytte', price: 990 },
     { name: 'Service Standard', price: 1990 },
     { name: 'Service Pluss', price: 2990 },
   ],

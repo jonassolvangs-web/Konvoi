@@ -5,7 +5,6 @@ export const DEMO_PRODUCT_BREAKDOWN: ProductBreakdown[] = [
   { product_name: 'Medium', order_type: 'ventilasjonsrens', count: 22, revenue: 109780, commission: 29700 },
   { product_name: 'Stor', order_type: 'ventilasjonsrens', count: 11, revenue: 65890, commission: 14850 },
   { product_name: 'Service Standard', order_type: 'service', count: 8, revenue: 15920, commission: 10800 },
-  { product_name: 'Filterbytte', order_type: 'service', count: 5, revenue: 4950, commission: 6750 },
   { product_name: 'Service Pluss', order_type: 'service', count: 3, revenue: 8970, commission: 4050 },
 ];
 
