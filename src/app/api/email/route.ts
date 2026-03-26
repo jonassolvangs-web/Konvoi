@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 import { requireAuth } from '@/lib/auth';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const fromEmail = process.env.EMAIL_FROM || 'hei@godtvedlikehold.no';
+const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || 'hei@godtvedlikehold.no';
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
     });
 
     if (error) {
-      console.error('Resend error:', error);
-      return NextResponse.json({ error: 'Kunne ikke sende e-post' }, { status: 500 });
+      console.error('Resend error:', JSON.stringify(error));
+      return NextResponse.json({ error: `Kunne ikke sende e-post: ${error.message || JSON.stringify(error)}` }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, id: data?.id });
