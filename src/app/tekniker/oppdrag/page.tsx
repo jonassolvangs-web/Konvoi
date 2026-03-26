@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Clock, Building2, Navigation } from 'lucide-react';
+import { MapPin, Clock, Building2, Navigation, Trash2 } from 'lucide-react';
 import Tabs from '@/components/ui/tabs';
 import Card from '@/components/ui/card';
 import StatusBadge from '@/components/ui/status-badge';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import EmptyState from '@/components/ui/empty-state';
+import Modal from '@/components/ui/modal';
+import Button from '@/components/ui/button';
 import { formatDate, formatTime, formatDistance } from '@/lib/utils';
+import toast from 'react-hot-toast';
 
 interface WorkOrder {
   id: string;
@@ -58,21 +61,40 @@ export default function TeknikerOppdragPage() {
   const [tab, setTab] = useState('idag');
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchWorkOrders = async () => {
+    try {
+      const res = await fetch('/api/work-orders?all=true');
+      const data = await res.json();
+      setWorkOrders(data.workOrders || []);
+    } catch {
+      setWorkOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchWorkOrders() {
-      try {
-        const res = await fetch('/api/work-orders');
-        const data = await res.json();
-        setWorkOrders(data.workOrders || []);
-      } catch {
-        setWorkOrders([]);
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchWorkOrders();
   }, []);
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/work-orders/${deleteId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      toast.success('Oppdrag slettet');
+      setDeleteId(null);
+      fetchWorkOrders();
+    } catch {
+      toast.error('Kunne ikke slette oppdrag');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const todayOrders = workOrders.filter(
     (wo) => wo.status !== 'fullfort' && isToday(new Date(wo.scheduledAt))
@@ -167,7 +189,20 @@ export default function TeknikerOppdragPage() {
               <div className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-sm font-semibold">{wo.organization.name}</h3>
-                  <StatusBadge type="workOrder" status={wo.status} />
+                  <div className="flex items-center gap-1.5">
+                    <StatusBadge type="workOrder" status={wo.status} />
+                    {wo.status !== 'fullfort' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteId(wo.id);
+                        }}
+                        className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-1">
@@ -197,6 +232,20 @@ export default function TeknikerOppdragPage() {
           ))}
         </div>
       )}
+      {/* Delete confirmation modal */}
+      <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Slett oppdrag">
+        <p className="text-sm text-gray-600 mb-4">
+          Er du sikker på at du vil slette dette oppdraget? Handlingen kan ikke angres.
+        </p>
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={() => setDeleteId(null)} fullWidth>
+            Avbryt
+          </Button>
+          <Button onClick={handleDelete} isLoading={deleting} fullWidth className="!bg-red-600 hover:!bg-red-700">
+            Slett
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
