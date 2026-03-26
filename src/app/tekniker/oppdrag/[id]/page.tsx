@@ -361,11 +361,32 @@ export default function TeknikerOppdragDetailPage() {
     // Apply body styles to container
     const styleMatch = bodyStyles?.[1]?.match(/style="([^"]*)"/);
     if (styleMatch) container.setAttribute('style', styleMatch[1]);
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
+    // Position in viewport but invisible - html2canvas needs elements in the layout flow
+    container.style.position = 'fixed';
+    container.style.top = '0';
+    container.style.left = '0';
     container.style.width = '700px';
+    container.style.zIndex = '-9999';
+    container.style.opacity = '0';
+    container.style.pointerEvents = 'none';
     container.innerHTML = innerHtml;
     document.body.appendChild(container);
+
+    // Wait for images to load and browser to paint
+    await new Promise<void>((resolve) => {
+      const images = container.querySelectorAll('img');
+      if (images.length === 0) {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        return;
+      }
+      let loaded = 0;
+      const checkDone = () => { if (++loaded >= images.length) resolve(); };
+      images.forEach((img) => {
+        if (img.complete) checkDone();
+        else { img.onload = checkDone; img.onerror = checkDone; }
+      });
+      setTimeout(resolve, 5000); // fallback timeout
+    });
 
     try {
       const dataUri: string = await html2pdf()
@@ -373,13 +394,12 @@ export default function TeknikerOppdragDetailPage() {
           margin: [10, 10, 10, 10],
           filename: 'rapport.pdf',
           image: { type: 'jpeg', quality: 0.95 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
+          html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 700 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         })
         .from(container)
         .output('datauristring');
 
-      // Extract base64 from data URI
       return dataUri.split(',')[1];
     } finally {
       document.body.removeChild(container);
@@ -429,7 +449,15 @@ export default function TeknikerOppdragDetailPage() {
       });
 
       toast('Genererer PDF...', { icon: '📄' });
-      const pdfBase64 = await generatePdfInBrowser(reportHtml);
+      let pdfBase64: string | undefined;
+      try {
+        pdfBase64 = await generatePdfInBrowser(reportHtml);
+      } catch (pdfErr) {
+        console.error('PDF generation failed, sending report as email body', pdfErr);
+      }
+
+      // If PDF failed, send full report as email body instead of just greeting
+      const emailBody = pdfBase64 ? greetingHtml : reportHtml;
 
       const emailRes = await fetch('/api/email', {
         method: 'POST',
@@ -437,7 +465,7 @@ export default function TeknikerOppdragDetailPage() {
         body: JSON.stringify({
           to: email,
           subject: `Rapport Ventilasjonsrens - ${workOrder.organization.address}`,
-          html: greetingHtml,
+          html: emailBody,
           pdfBase64,
         }),
       });
