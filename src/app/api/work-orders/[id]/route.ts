@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       where: { id },
       include: {
         organization: true,
-        technician: { select: { name: true, email: true } },
+        technician: { select: { name: true, email: true, phone: true } },
         units: {
           include: {
             dwellingUnit: true,
@@ -49,43 +49,56 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       // Delete the work order
       await tx.workOrder.delete({ where: { id } });
 
-      // Reset org status if no other active work orders remain
-      const otherOrders = await tx.workOrder.count({
-        where: { organizationId: wo.organizationId, status: { in: ['planlagt', 'pagaar'] } },
+      // Check if org has any remaining work orders
+      const remainingOrders = await tx.workOrder.count({
+        where: { organizationId: wo.organizationId },
       });
-      if (otherOrders === 0) {
-        await tx.organization.update({
-          where: { id: wo.organizationId },
-          data: { status: 'ny' },
+
+      if (remainingOrders === 0) {
+        // Clean up quick-created org with no remaining orders
+        await tx.dwellingUnit.deleteMany({ where: { organizationId: wo.organizationId } });
+        await tx.chatMessage.deleteMany({ where: { organizationId: wo.organizationId } });
+        await tx.callRecord.deleteMany({ where: { organizationId: wo.organizationId } });
+        await tx.organization.delete({ where: { id: wo.organizationId } });
+      } else {
+        // Reset org status if no active work orders remain
+        const activeOrders = await tx.workOrder.count({
+          where: { organizationId: wo.organizationId, status: { in: ['planlagt', 'pagaar'] } },
         });
-      }
+        if (activeOrders === 0) {
+          await tx.organization.update({
+            where: { id: wo.organizationId },
+            data: { status: 'ny' },
+          });
+        }
 
-      // System chat message
-      await tx.chatMessage.create({
-        data: {
-          channelType: 'organization',
-          channelId: wo.organizationId,
-          senderId: wo.technicianId,
-          organizationId: wo.organizationId,
-          content: `${userName} avbrøt oppdraget`,
-          isSystem: true,
-        },
-      });
-
-      // Notify assigned user
-      const org = await tx.organization.findUnique({
-        where: { id: wo.organizationId },
-        select: { assignedToId: true, name: true },
-      });
-      if (org?.assignedToId) {
-        await tx.notification.create({
+        // System chat message
+        await tx.chatMessage.create({
           data: {
-            userId: org.assignedToId,
-            title: 'Oppdrag avbrutt',
-            message: `${userName} avbrøt oppdraget for ${org.name}`,
-            type: 'warning',
+            channelType: 'organization',
+            channelId: wo.organizationId,
+            senderId: wo.technicianId,
+            organizationId: wo.organizationId,
+            content: `${userName} slettet oppdraget`,
+            isSystem: true,
           },
         });
+
+        // Notify assigned user
+        const org = await tx.organization.findUnique({
+          where: { id: wo.organizationId },
+          select: { assignedToId: true, name: true },
+        });
+        if (org?.assignedToId) {
+          await tx.notification.create({
+            data: {
+              userId: org.assignedToId,
+              title: 'Oppdrag slettet',
+              message: `${userName} slettet oppdraget for ${org.name}`,
+              type: 'warning',
+            },
+          });
+        }
       }
     });
 

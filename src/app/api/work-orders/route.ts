@@ -20,7 +20,8 @@ export async function GET(req: NextRequest) {
     const technicianId = searchParams.get('technicianId') || userId;
     const status = searchParams.get('status');
 
-    const where: any = { technicianId };
+    const all = searchParams.get('all') === 'true';
+    const where: any = all ? {} : { technicianId };
     if (status) where.status = status;
 
     const workOrders = await prisma.workOrder.findMany({
