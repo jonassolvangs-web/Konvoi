@@ -680,7 +680,7 @@ function WorkOrderCard({ wo, onDelete }: { wo: WorkOrder; onDelete: (id: string)
         <span className="text-sm font-semibold">{wo.organization.name}</span>
         <div className="flex items-center gap-1.5">
           <StatusBadge type="workOrder" status={wo.status} />
-          {wo.status === 'planlagt' && (
+          {wo.status !== 'fullfort' && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
