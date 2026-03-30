@@ -44,7 +44,17 @@ export async function geocodeAddress(
   postalCode?: string,
   city?: string
 ): Promise<AddressResult | null> {
-  const parts = [street, postalCode, city].filter(Boolean).join(' ');
-  const results = await searchAddresses(parts, 1);
-  return results[0] || null;
+  // Try with full address first
+  const fullQuery = [street, postalCode, city].filter(Boolean).join(' ');
+  const results = await searchAddresses(fullQuery, 1);
+  if (results[0]) return results[0];
+
+  // Retry with just street name if full query failed
+  if (postalCode || city) {
+    const streetOnly = await searchAddresses(street, 1);
+    if (streetOnly[0]) return streetOnly[0];
+  }
+
+  console.warn('Geocoding failed for:', fullQuery);
+  return null;
 }

@@ -530,7 +530,12 @@ export default function KartPage() {
         }
       }
 
-      toast.success('Adresse lagt til');
+      // Check if geocoding succeeded
+      if (data.organization && (data.organization.latitude == null || data.organization.longitude == null)) {
+        toast('Adresse lagt til, men kunne ikke finne koordinater. Adressen vises ikke på kartet.', { icon: '⚠️', duration: 5000 });
+      } else {
+        toast.success('Adresse lagt til');
+      }
       setShowAddAddress(false);
       setManualAddress('');
       setManualPostal('');
@@ -583,6 +588,37 @@ export default function KartPage() {
         </div>
         <FilterChips chips={statusChips} activeChip={statusFilter} onChange={setStatusFilter} />
       </div>
+
+      {/* Addresses without coordinates warning */}
+      {view === 'kart' && organizations.some((o) => !o.latitude || !o.longitude) && (
+        <div className="px-4 pb-2">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center justify-between">
+            <span className="text-xs text-amber-700">
+              {organizations.filter((o) => !o.latitude || !o.longitude).length} adresse(r) mangler koordinater
+            </span>
+            <button
+              onClick={async () => {
+                toast('Geokoder manglende adresser...', { icon: '🔄' });
+                try {
+                  const res = await fetch('/api/admin/geocode-missing', { method: 'POST' });
+                  const data = await res.json();
+                  if (data.geocoded > 0) {
+                    toast.success(`${data.geocoded} adresse(r) geokodet`);
+                    fetchData();
+                  } else {
+                    toast('Ingen nye adresser ble geokodet', { icon: '⚠️' });
+                  }
+                } catch {
+                  toast.error('Kunne ikke geokode');
+                }
+              }}
+              className="text-xs font-medium text-amber-800 bg-amber-100 px-2.5 py-1 rounded-lg hover:bg-amber-200 transition-colors"
+            >
+              Prøv igjen
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 min-h-0 relative">
