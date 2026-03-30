@@ -82,8 +82,10 @@ export async function POST(req: NextRequest) {
 
     // Auto-geocode if coordinates missing
     if (org.latitude == null || org.longitude == null) {
+      console.log('Geocoding address:', org.address, org.postalCode, org.city);
       const result = await geocodeAddress(org.address, org.postalCode || undefined, org.city || undefined);
       if (result) {
+        console.log('Geocoded successfully:', result.lat, result.lon);
         const office = await getOfficeCoordinates();
         const distance = calculateDistanceFromOffice(office.lat, office.lon, result.lat, result.lon);
         org = await prisma.organization.update({
@@ -95,6 +97,8 @@ export async function POST(req: NextRequest) {
             distanceFromOfficeMin: distance.distanceFromOfficeMin,
           },
         });
+      } else {
+        console.warn('Geocoding returned null for:', org.address);
       }
     }
 
