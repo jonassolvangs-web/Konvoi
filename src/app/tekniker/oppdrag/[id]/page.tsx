@@ -453,11 +453,11 @@ export default function TeknikerOppdragDetailPage() {
       try {
         pdfBase64 = await generatePdfInBrowser(reportHtml);
       } catch (pdfErr) {
-        console.error('PDF generation failed, sending report as email body', pdfErr);
+        console.error('PDF generation failed', pdfErr);
       }
 
-      // If PDF failed, send full report as email body instead of just greeting
-      const emailBody = pdfBase64 ? greetingHtml : reportHtml;
+      // Always send full report as email body so it's never blank
+      const emailBody = reportHtml;
 
       const emailRes = await fetch('/api/email', {
         method: 'POST',
@@ -771,6 +771,23 @@ export default function TeknikerOppdragDetailPage() {
                             </button>
                           ))}
                         </div>
+                        <div className="mt-2">
+                          <label className="text-xs font-medium text-gray-600 mb-1 block">Egendefinert beløp</label>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            placeholder="Skriv inn beløp"
+                            value={changeUnitId === unit.id && !(productsByOrderType[changeOrderType] || []).some(p => p.price === changePrice) ? changePrice || '' : ''}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 0;
+                              setChangeUnitId(unit.id);
+                              setChangeProduct('Egendefinert');
+                              setChangePrice(val);
+                            }}
+                            onFocus={() => setChangeUnitId(unit.id)}
+                            className="input-field"
+                          />
+                        </div>
                       </div>
                       {/* Nedbetaling */}
                       <div>
@@ -824,7 +841,7 @@ export default function TeknikerOppdragDetailPage() {
                               changeUnitId === unit.id && changePaymentMethod === 'vipps' ? 'bg-[#FF5B24] text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
                             }`}
                           >
-                            <img src="/icons/vipps.svg" alt="Vipps" className="h-5" />
+                            <span className={`text-sm font-bold ${changeUnitId === unit.id && changePaymentMethod === 'vipps' ? 'text-white' : 'text-[#FF5B24]'}`}>Vipps</span>
                           </button>
                         </div>
                       </div>
@@ -1148,6 +1165,21 @@ export default function TeknikerOppdragDetailPage() {
                 </button>
               ))}
             </div>
+            <div className="mt-2">
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Egendefinert beløp</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="Skriv inn beløp"
+                value={!(productsByOrderType[changeOrderType] || []).some(p => p.price === changePrice) ? changePrice || '' : ''}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setChangeProduct('Egendefinert');
+                  setChangePrice(val);
+                }}
+                className="input-field"
+              />
+            </div>
           </div>
 
           {/* Nedbetaling */}
@@ -1192,7 +1224,7 @@ export default function TeknikerOppdragDetailPage() {
                   changePaymentMethod === 'vipps' ? 'bg-[#FF5B24] text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                <img src="/icons/vipps.svg" alt="Vipps" className="h-5" />
+                <span className={`text-sm font-bold ${changePaymentMethod === 'vipps' ? 'text-white' : 'text-[#FF5B24]'}`}>Vipps</span>
               </button>
             </div>
           </div>
