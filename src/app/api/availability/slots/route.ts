@@ -122,10 +122,15 @@ export async function GET(req: NextRequest) {
       } else {
         // Fall back to weekly templates
         const dayTemplates = templates.filter((t) => t.dayOfWeek === dow);
-        availableRanges = dayTemplates.map((t) => ({
-          start: timeToMinutes(t.startTime),
-          end: timeToMinutes(t.endTime),
-        }));
+        if (dayTemplates.length > 0) {
+          availableRanges = dayTemplates.map((t) => ({
+            start: timeToMinutes(t.startTime),
+            end: timeToMinutes(t.endTime),
+          }));
+        } else {
+          // Default: available 07:00–19:00 (matches technician calendar default)
+          availableRanges = [{ start: timeToMinutes('07:00'), end: timeToMinutes('19:00') }];
+        }
       }
 
       // Subtract bookings for this day
