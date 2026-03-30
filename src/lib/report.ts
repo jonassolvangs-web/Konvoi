@@ -66,7 +66,7 @@ export function generateReportHtml(data: ReportData, baseUrl: string): string {
     const workItems = [
       'Rengjøring av tilluftskanaler',
       'Rengjøring av avtrekkskanaler',
-      'Rens av ventiler og ventilrister',
+      'Rengjøring av ventiler og ventilrister',
     ];
 
     const workHtml = workItems.map((item) => `

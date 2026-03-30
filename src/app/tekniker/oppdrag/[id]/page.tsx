@@ -874,7 +874,7 @@ export default function TeknikerOppdragDetailPage() {
                             Utført arbeid
                           </h4>
                           <div className="space-y-1.5">
-                            {['Rengjøring av tilluftskanaler', 'Rengjøring av avtrekkskanaler', 'Rens av ventiler og ventilrister'].map((item) => (
+                            {['Rengjøring av tilluftskanaler', 'Rengjøring av avtrekkskanaler', 'Rengjøring av ventiler og ventilrister'].map((item) => (
                               <div key={item} className="flex items-center gap-2 py-1">
                                 <CheckSquare className="h-4 w-4 text-green-600 flex-shrink-0" />
                                 <span className="text-sm">{item}</span>

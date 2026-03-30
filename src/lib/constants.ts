@@ -56,7 +56,7 @@ export const adminTabs = [
 export const defaultChecklist = [
   { id: 1, label: 'Rengjøring av tilluftskanaler', checked: false },
   { id: 2, label: 'Rengjøring av avtrekkskanaler', checked: false },
-  { id: 3, label: 'Rens av ventiler og ventilrister', checked: false },
+  { id: 3, label: 'Rengjøring av ventiler og ventilrister', checked: false },
   { id: 4, label: 'Kontroll av aggregat og vifter', checked: false },
 ];
 
