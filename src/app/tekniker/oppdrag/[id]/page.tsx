@@ -449,15 +449,14 @@ export default function TeknikerOppdragDetailPage() {
       });
 
       toast('Genererer PDF...', { icon: '📄' });
-      let pdfBase64: string | undefined;
+      let pdfBase64: string;
       try {
         pdfBase64 = await generatePdfInBrowser(reportHtml);
       } catch (pdfErr) {
         console.error('PDF generation failed', pdfErr);
+        toast.error('Kunne ikke generere PDF. Prøv igjen.');
+        return;
       }
-
-      // Always send full report as email body so it's never blank
-      const emailBody = reportHtml;
 
       const emailRes = await fetch('/api/email', {
         method: 'POST',
@@ -465,7 +464,7 @@ export default function TeknikerOppdragDetailPage() {
         body: JSON.stringify({
           to: email,
           subject: `Rapport Ventilasjonsrens - ${workOrder.organization.address}`,
-          html: emailBody,
+          html: greetingHtml,
           pdfBase64,
         }),
       });

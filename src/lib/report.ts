@@ -40,7 +40,7 @@ export function generateGreetingHtml(data: GreetingData): string {
     <head><meta charset="UTF-8"></head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #111;">
       <p>${greeting}</p>
-      <p>Takk for at du valgte Godt Vedlikehold! Her er rapporten fra ventilasjonsrensen som ble utf&oslash;rt ${data.completedDate}.</p>
+      <p>Takk for at du valgte Godt Vedlikehold! Vedlagt finner du rapporten fra ventilasjonsrensen som ble utf&oslash;rt ${data.completedDate}.</p>
       <br>
       <p style="margin: 0;">Med vennlig hilsen,</p>
       <p style="margin: 4px 0 0; font-weight: 600;">Godt Vedlikehold</p>
