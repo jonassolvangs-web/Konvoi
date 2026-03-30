@@ -62,12 +62,11 @@ export function generateReportHtml(data: ReportData, baseUrl: string): string {
     const customerPhone = unit.dwellingUnit.residentPhone || '';
     const customerEmail = unit.dwellingUnit.residentEmail || '';
 
-    // Utført arbeid - fast liste
+    // Utført arbeid - standard utførelser
     const workItems = [
       'Rengjøring av tilluftskanaler',
       'Rengjøring av avtrekkskanaler',
       'Rens av ventiler og ventilrister',
-      'Kontroll av aggregat og vifter',
     ];
 
     const workHtml = workItems.map((item) => `

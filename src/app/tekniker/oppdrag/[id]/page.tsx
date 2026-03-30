@@ -576,14 +576,6 @@ export default function TeknikerOppdragDetailPage() {
   if (!workOrder) return <EmptyState title="Oppdrag ikke funnet" description="Kunne ikke finne dette oppdraget" />;
 
   const totalPrice = workOrder.units.reduce((sum, u) => sum + u.price, 0);
-  const completedChecks = workOrder.units.reduce((sum, u) => {
-    const cl = parseChecklist(u.checklist);
-    return sum + cl.filter((i) => i.checked).length;
-  }, 0);
-  const totalChecks = workOrder.units.reduce((sum, u) => {
-    const cl = parseChecklist(u.checklist);
-    return sum + cl.length;
-  }, 0);
 
   return (
     <div className="page-container">
@@ -601,14 +593,10 @@ export default function TeknikerOppdragDetailPage() {
 
       {/* Info cards */}
       <Card className="mb-4">
-        <div className="grid grid-cols-3 gap-3 text-center">
+        <div className="grid grid-cols-2 gap-3 text-center">
           <div>
             <p className="text-lg font-bold">{workOrder.units.length}</p>
             <p className="text-xs text-gray-500">Enheter</p>
-          </div>
-          <div>
-            <p className="text-lg font-bold">{completedChecks}/{totalChecks}</p>
-            <p className="text-xs text-gray-500">Sjekkliste</p>
           </div>
           <div>
             <p className="text-lg font-bold">{totalPrice > 0 ? formatCurrency(totalPrice) : '–'}</p>
@@ -656,8 +644,6 @@ export default function TeknikerOppdragDetailPage() {
       <div className="space-y-3">
         {workOrder.units.map((unit) => {
           const isActive = activeUnit === unit.id;
-          const checklist = parseChecklist(unit.checklist);
-          const checked = checklist.filter((i) => i.checked).length;
 
           return (
             <Card key={unit.id} padding="none">
@@ -704,17 +690,7 @@ export default function TeknikerOppdragDetailPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      color={checked === checklist.length && checklist.length > 0
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-600'
-                      }
-                    >
-                      {checked}/{checklist.length}
-                    </Badge>
-                    <StatusBadge type="payment" status={unit.paymentStatus} />
-                  </div>
+                  <StatusBadge type="payment" status={unit.paymentStatus} />
                 </div>
               </div>
 
@@ -891,31 +867,18 @@ export default function TeknikerOppdragDetailPage() {
                       <div className="border-t border-gray-200 pt-3">
                         <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Rapport</h4>
 
-                        {/* Checklist */}
+                        {/* Standard utførelser (vises som info, trenger ikke hukes av) */}
                         <div className="mb-4">
                           <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
                             <CheckSquare className="h-3.5 w-3.5 inline mr-1" />
-                            Sjekkliste
+                            Utført arbeid
                           </h4>
                           <div className="space-y-1.5">
-                            {checklist.map((item) => (
-                              <button
-                                key={item.id}
-                                onClick={() => handleToggleChecklist(unit.id, checklist, item.id)}
-                                className="flex items-center gap-2 w-full text-left py-1"
-                              >
-                                {item.checked ? (
-                                  <CheckSquare className="h-4 w-4 text-green-600 flex-shrink-0" />
-                                ) : (
-                                  <Square className="h-4 w-4 text-gray-300 flex-shrink-0" />
-                                )}
-                                <span className={cn(
-                                  'text-sm',
-                                  item.checked && 'text-gray-400 line-through'
-                                )}>
-                                  {item.label}
-                                </span>
-                              </button>
+                            {['Rengjøring av tilluftskanaler', 'Rengjøring av avtrekkskanaler', 'Rens av ventiler og ventilrister'].map((item) => (
+                              <div key={item} className="flex items-center gap-2 py-1">
+                                <CheckSquare className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                <span className="text-sm">{item}</span>
+                              </div>
                             ))}
                           </div>
                         </div>
