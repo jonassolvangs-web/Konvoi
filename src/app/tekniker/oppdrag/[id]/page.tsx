@@ -114,6 +114,12 @@ export default function TeknikerOppdragDetailPage() {
   const [sendingReport, setSendingReport] = useState<string | null>(null); // unitId
   const [manualEmails, setManualEmails] = useState<Record<string, string>>({}); // unitId -> email
 
+  // Editable customer info state
+  const [customerName, setCustomerName] = useState<Record<string, string>>({});
+  const [customerEmail, setCustomerEmail] = useState<Record<string, string>>({});
+  const [customerPhone, setCustomerPhone] = useState<Record<string, string>>({});
+  const [customerAddress, setCustomerAddress] = useState<Record<string, string>>({});
+
   // Signature canvas
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawingRef = useRef(false);
@@ -407,9 +413,16 @@ export default function TeknikerOppdragDetailPage() {
   };
 
   const handleSendReport = async (unit: WorkOrderUnit) => {
-    const email = getUnitEmail(unit) || manualEmails[unit.id]?.trim();
-    if (!email) {
-      toast.error('Legg inn e-postadresse først');
+    const recipientEmail = 'hei@godtvedlikehold.no';
+    const name = customerName[unit.id]?.trim();
+    const address = customerAddress[unit.id]?.trim();
+
+    if (!name) {
+      toast.error('Legg inn kundens navn');
+      return;
+    }
+    if (!address) {
+      toast.error('Legg inn adresse');
       return;
     }
 
@@ -417,34 +430,46 @@ export default function TeknikerOppdragDetailPage() {
     try {
       if (!workOrder) return;
 
-      // Save manually entered email to dwelling unit
-      if (!getUnitEmail(unit) && manualEmails[unit.id]?.trim()) {
-        await fetch(`/api/work-orders/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            dwellingUnitId: unit.dwellingUnit.id,
-            residentEmail: manualEmails[unit.id].trim(),
-          }),
-        });
-      }
+      // Save customer info to dwelling unit
+      const updateData: any = { dwellingUnitId: unit.dwellingUnit.id };
+      if (name) updateData.residentName = name;
+      if (customerEmail[unit.id]?.trim()) updateData.residentEmail = customerEmail[unit.id].trim();
+      if (customerPhone[unit.id]?.trim()) updateData.residentPhone = customerPhone[unit.id].trim();
+
+      await fetch(`/api/work-orders/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      });
 
       const { generateReportHtml, generateGreetingHtml } = await import('@/lib/report');
       const baseUrl = window.location.origin;
       const completedDate = new Date().toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      // Use manually entered customer info
+      const unitWithCustomerInfo = {
+        ...unit,
+        dwellingUnit: {
+          ...unit.dwellingUnit,
+          residentName: name,
+          residentPhone: customerPhone[unit.id]?.trim() || unit.dwellingUnit.residentPhone,
+          residentEmail: customerEmail[unit.id]?.trim() || unit.dwellingUnit.residentEmail,
+        },
+      };
+
       const reportHtml = generateReportHtml({
-        organizationName: workOrder.organization.name,
-        organizationAddress: workOrder.organization.address,
+        organizationName: name,
+        organizationAddress: address,
         technicianName: workOrder.technician.name,
         technicianPhone: '',
         technicianEmail: workOrder.technician.email,
         completedDate,
-        units: [unit],
+        units: [unitWithCustomerInfo],
       }, baseUrl);
 
       const greetingHtml = generateGreetingHtml({
-        residentName: unit.dwellingUnit.residentName,
-        organizationName: workOrder.organization.name,
+        residentName: name,
+        organizationName: 'Godt Vedlikehold',
         completedDate,
       });
 
@@ -462,8 +487,8 @@ export default function TeknikerOppdragDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: email,
-          subject: `Rapport Ventilasjonsrens - ${workOrder.organization.address}`,
+          to: recipientEmail,
+          subject: `Rapport Ventilasjonsrens - ${name} - ${address}`,
           html: greetingHtml,
           pdfBase64,
         }),
@@ -478,7 +503,7 @@ export default function TeknikerOppdragDetailPage() {
         body: JSON.stringify({ unitId: unit.id, reportSentAt: new Date().toISOString() }),
       });
 
-      toast.success(`Rapport sendt til ${email}`);
+      toast.success('Rapport sendt til hei@godtvedlikehold.no');
       fetchWorkOrder();
     } catch (err: any) {
       toast.error(err.message || 'Kunne ikke sende rapport');
@@ -693,384 +718,159 @@ export default function TeknikerOppdragDetailPage() {
                 </div>
               </div>
 
-              {/* Expanded content */}
+              {/* Expanded content - simplified form */}
               {isActive && workOrder.status === 'pagaar' && (
                 <div className="border-t border-gray-100 p-4 space-y-4">
-                  {/* Product selection - shown prominently when no product chosen */}
-                  {!unit.productName && !unit.product?.name ? (
-                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
-                      <h4 className="text-sm font-semibold text-orange-800">
-                        Velg produkt for denne enheten
-                      </h4>
-                      <div>
-                        <label className="text-xs font-medium text-gray-600 mb-1.5 block">Ordretype</label>
-                        <div className="flex gap-2">
-                          {['ventilasjonsrens', 'service'].map((ot) => (
-                            <button
-                              key={ot}
-                              onClick={() => {
-                                setChangeUnitId(unit.id);
-                                setChangeOrderType(ot);
-                                const products = productsByOrderType[ot] || [];
-                                if (products.length) {
-                                  setChangeProduct(products[0].name);
-                                  setChangePrice(products[0].price);
-                                }
-                              }}
-                              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                changeUnitId === unit.id && changeOrderType === ot ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
-                              }`}
-                            >
-                              {ot === 'ventilasjonsrens' ? 'Ventilasjonsrens' : 'Service'}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-gray-600 mb-1.5 block">Produkt</label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {(productsByOrderType[changeUnitId === unit.id ? changeOrderType : 'ventilasjonsrens'] || []).map((p) => (
-                            <button
-                              key={p.name}
-                              onClick={() => {
-                                setChangeUnitId(unit.id);
-                                setChangeProduct(p.name);
-                                setChangePrice(p.price);
-                              }}
-                              className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                                changeUnitId === unit.id && changeProduct === p.name ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
-                              }`}
-                            >
-                              <span className="text-sm font-medium block">{p.label}</span>
-                              <span className="text-xs block mt-0.5">{formatCurrency(p.price)}</span>
-                            </button>
-                          ))}
-                        </div>
-                        <div className="mt-2">
-                          <label className="text-xs font-medium text-gray-600 mb-1 block">Egendefinert beløp</label>
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            placeholder="Skriv inn beløp"
-                            value={changeUnitId === unit.id && !(productsByOrderType[changeOrderType] || []).some(p => p.price === changePrice) ? changePrice || '' : ''}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value) || 0;
-                              setChangeUnitId(unit.id);
-                              setChangeProduct('Egendefinert');
-                              setChangePrice(val);
-                            }}
-                            onFocus={() => setChangeUnitId(unit.id)}
-                            className="input-field"
-                          />
-                        </div>
-                      </div>
-                      {/* Nedbetaling */}
-                      <div>
-                        <label className="text-xs font-medium text-gray-600 mb-1.5 block">Nedbetaling</label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {paymentPlanOptions.map((months) => {
-                            const price = changeUnitId === unit.id ? changePrice : 0;
-                            const monthlyAmount = months > 0 ? Math.ceil(price / months) : price;
-                            return (
-                              <button
-                                key={months}
-                                onClick={() => {
-                                  setChangeUnitId(unit.id);
-                                  setChangePaymentPlan(months);
-                                }}
-                                className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                                  changeUnitId === unit.id && changePaymentPlan === months ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
-                                }`}
-                              >
-                                <span className="text-sm font-medium block">{months === 0 ? 'Fullt' : `${months} mnd`}</span>
-                                <span className="text-xs block mt-0.5">
-                                  {months === 0 ? formatCurrency(price) : `${formatCurrency(monthlyAmount)}/mnd`}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
 
-                      {/* Betalingsmåte */}
-                      <div>
-                        <label className="text-xs font-medium text-gray-600 mb-1.5 block">Betaling</label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => {
-                              setChangeUnitId(unit.id);
-                              setChangePaymentMethod('faktura');
-                            }}
-                            className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                              changeUnitId === unit.id && changePaymentMethod === 'faktura' ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            <span className="text-sm font-medium">Faktura</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              setChangeUnitId(unit.id);
-                              setChangePaymentMethod('vipps');
-                            }}
-                            className={`py-3 px-2 rounded-xl flex items-center justify-center gap-2 transition-colors ${
-                              changeUnitId === unit.id && changePaymentMethod === 'vipps' ? 'bg-[#FF5B24] text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            <span className={`text-sm font-bold ${changeUnitId === unit.id && changePaymentMethod === 'vipps' ? 'text-white' : 'text-[#FF5B24]'}`}>Vipps</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <Button
-                        size="sm"
-                        fullWidth
-                        disabled={!changeProduct || changeUnitId !== unit.id}
-                        onClick={() => {
-                          setChangeOriginal({ orderType: unit.orderType, product: '', price: 0 });
-                          handleChangeOrder();
-                        }}
-                      >
-                        Bekreft produkt
-                      </Button>
+                  {/* ── KUNDEINFORMASJON ── */}
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Kundeinformasjon</h4>
+                    <div className="space-y-3">
+                      <Input
+                        label="Navn"
+                        type="text"
+                        placeholder="Kundens fulle navn"
+                        value={customerName[unit.id] ?? unit.dwellingUnit.residentName ?? ''}
+                        onChange={(e) => setCustomerName((prev) => ({ ...prev, [unit.id]: e.target.value }))}
+                      />
+                      <Input
+                        label="E-post"
+                        type="email"
+                        placeholder="kunde@example.no"
+                        value={customerEmail[unit.id] ?? unit.dwellingUnit.residentEmail ?? ''}
+                        onChange={(e) => setCustomerEmail((prev) => ({ ...prev, [unit.id]: e.target.value }))}
+                      />
+                      <Input
+                        label="Telefon"
+                        type="tel"
+                        placeholder="999 99 999"
+                        value={customerPhone[unit.id] ?? unit.dwellingUnit.residentPhone ?? ''}
+                        onChange={(e) => setCustomerPhone((prev) => ({ ...prev, [unit.id]: e.target.value }))}
+                      />
+                      <Input
+                        label="Adresse"
+                        type="text"
+                        placeholder="Gateadresse, postnr sted"
+                        value={customerAddress[unit.id] ?? workOrder.organization.address ?? ''}
+                        onChange={(e) => setCustomerAddress((prev) => ({ ...prev, [unit.id]: e.target.value }))}
+                      />
                     </div>
-                  ) : (
-                    <>
-                      {/* Payment summary + change order button */}
-                      <div className="flex items-start justify-between">
-                        <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-1 flex-1">
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Produkt</span>
-                            <span className="font-medium">{unit.productName || unit.product?.name}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Beløp</span>
-                            <span className="font-medium">{formatCurrency(unit.price)}</span>
-                          </div>
-                          {unit.paymentPlanMonths != null && unit.paymentPlanMonths > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Nedbetaling</span>
-                              <span>{unit.paymentPlanMonths} mnd ({formatCurrency(Math.ceil(unit.price / unit.paymentPlanMonths))}/mnd)</span>
+                  </div>
+
+                  {/* ── BILDER ── */}
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">
+                      <Camera className="h-3.5 w-3.5 inline mr-1" />
+                      Før og etter bilder
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Before photo */}
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Før-bilde</p>
+                        {unit.photoBeforeUrl ? (
+                          <div className="relative">
+                            <img src={unit.photoBeforeUrl} alt="Før" className="w-full h-28 object-cover rounded-xl border border-gray-200" />
+                            <div className="flex gap-1 mt-1">
+                              <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
+                                Ta nytt
+                                <input type="file" accept="image/*" capture="environment" className="hidden"
+                                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
+                              </label>
+                              <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
+                                Last opp
+                                <input type="file" accept="image/*" className="hidden"
+                                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
+                              </label>
                             </div>
-                          )}
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Betaling</span>
-                            <span className="capitalize">{unit.paymentMethod || '–'}</span>
                           </div>
-                        </div>
-                        <Button size="sm" variant="ghost" className="ml-2" onClick={() => openChangeOrder(unit)}>
-                          <Edit3 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-
-                      {/* ── RAPPORT ── */}
-                      <div className="border-t border-gray-200 pt-3">
-                        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Rapport</h4>
-
-                        {/* Standard utførelser (vises som info, trenger ikke hukes av) */}
-                        <div className="mb-4">
-                          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                            <CheckSquare className="h-3.5 w-3.5 inline mr-1" />
-                            Utført arbeid
-                          </h4>
+                        ) : uploadingPhoto === `before-${unit.id}` ? (
+                          <div className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
+                            <span className="text-xs text-blue-500">Laster opp...</span>
+                          </div>
+                        ) : (
                           <div className="space-y-1.5">
-                            {['Rengjøring av tilluftskanaler', 'Rengjøring av avtrekkskanaler', 'Rengjøring av ventiler og ventilrister'].map((item) => (
-                              <div key={item} className="flex items-center gap-2 py-1">
-                                <CheckSquare className="h-4 w-4 text-green-600 flex-shrink-0" />
-                                <span className="text-sm">{item}</span>
-                              </div>
-                            ))}
+                            <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
+                              <Camera className="h-4 w-4 text-gray-400" />
+                              <span className="text-xs text-gray-500">Ta bilde</span>
+                              <input type="file" accept="image/*" capture="environment" className="hidden"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
+                            </label>
+                            <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
+                              <ImageIcon className="h-4 w-4 text-gray-400" />
+                              <span className="text-xs text-gray-500">Kamerarull</span>
+                              <input type="file" accept="image/*" className="hidden"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
+                            </label>
                           </div>
-                        </div>
-
-                        {/* Air measurements */}
-                        <div className="mb-4">
-                          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                            <Wind className="h-3.5 w-3.5 inline mr-1" />
-                            Luftmålinger
-                          </h4>
-                          <div className="flex gap-2 items-end">
-                            <Input
-                              label="Før (l/s)"
-                              type="number"
-                              placeholder={unit.airBefore?.toString() || '0'}
-                              value={airBefore}
-                              onChange={(e) => setAirBefore(e.target.value)}
-                              className="flex-1"
-                            />
-                            <Input
-                              label="Etter (l/s)"
-                              type="number"
-                              placeholder={unit.airAfter?.toString() || '0'}
-                              value={airAfter}
-                              onChange={(e) => setAirAfter(e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button size="sm" onClick={() => handleSaveAir(unit.id)}>
-                              Lagre
-                            </Button>
-                          </div>
-                          {unit.airBefore != null && unit.airAfter != null && (
-                            <div className="mt-2 flex items-center gap-2">
-                              <span className="text-xs text-gray-500">
-                                Før: {unit.airBefore} l/s | Etter: {unit.airAfter} l/s
-                              </span>
-                              {unit.airAfter > unit.airBefore && (
-                                <Badge color="bg-green-100 text-green-700" size="sm">
-                                  +{Math.round(((unit.airAfter - unit.airBefore) / unit.airBefore) * 100)}%
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Photo upload */}
-                        <div className="mb-4">
-                          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                            <Camera className="h-3.5 w-3.5 inline mr-1" />
-                            Dokumentasjon
-                          </h4>
-                          <div className="grid grid-cols-2 gap-3">
-                            {/* Before photo */}
-                            <div>
-                              <p className="text-xs text-gray-500 mb-1">Før-bilde</p>
-                              {unit.photoBeforeUrl ? (
-                                <div className="relative">
-                                  <img
-                                    src={unit.photoBeforeUrl}
-                                    alt="Før"
-                                    className="w-full h-28 object-cover rounded-xl border border-gray-200"
-                                  />
-                                  <div className="flex gap-1 mt-1">
-                                    <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
-                                      Ta nytt
-                                      <input type="file" accept="image/*" capture="environment" className="hidden"
-                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
-                                    </label>
-                                    <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
-                                      Last opp
-                                      <input type="file" accept="image/*" className="hidden"
-                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
-                                    </label>
-                                  </div>
-                                </div>
-                              ) : uploadingPhoto === `before-${unit.id}` ? (
-                                <div className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
-                                  <span className="text-xs text-blue-500">Laster opp...</span>
-                                </div>
-                              ) : (
-                                <div className="space-y-1.5">
-                                  <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
-                                    <Camera className="h-4 w-4 text-gray-400" />
-                                    <span className="text-xs text-gray-500">Ta bilde</span>
-                                    <input type="file" accept="image/*" capture="environment" className="hidden"
-                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
-                                  </label>
-                                  <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
-                                    <ImageIcon className="h-4 w-4 text-gray-400" />
-                                    <span className="text-xs text-gray-500">Kamerarull</span>
-                                    <input type="file" accept="image/*" className="hidden"
-                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
-                                  </label>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* After photo */}
-                            <div>
-                              <p className="text-xs text-gray-500 mb-1">Etter-bilde</p>
-                              {unit.photoAfterUrl ? (
-                                <div className="relative">
-                                  <img
-                                    src={unit.photoAfterUrl}
-                                    alt="Etter"
-                                    className="w-full h-28 object-cover rounded-xl border border-gray-200"
-                                  />
-                                  <div className="flex gap-1 mt-1">
-                                    <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
-                                      Ta nytt
-                                      <input type="file" accept="image/*" capture="environment" className="hidden"
-                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
-                                    </label>
-                                    <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
-                                      Last opp
-                                      <input type="file" accept="image/*" className="hidden"
-                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
-                                    </label>
-                                  </div>
-                                </div>
-                              ) : uploadingPhoto === `after-${unit.id}` ? (
-                                <div className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
-                                  <span className="text-xs text-blue-500">Laster opp...</span>
-                                </div>
-                              ) : (
-                                <div className="space-y-1.5">
-                                  <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
-                                    <Camera className="h-4 w-4 text-gray-400" />
-                                    <span className="text-xs text-gray-500">Ta bilde</span>
-                                    <input type="file" accept="image/*" capture="environment" className="hidden"
-                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
-                                  </label>
-                                  <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
-                                    <ImageIcon className="h-4 w-4 text-gray-400" />
-                                    <span className="text-xs text-gray-500">Kamerarull</span>
-                                    <input type="file" accept="image/*" className="hidden"
-                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
-                                  </label>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Send report */}
-                        <div className="mb-3">
-                          {unit.reportSentAt ? (
-                            <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700 flex items-center gap-2">
-                              <CheckCircle className="h-4 w-4" />
-                              Rapport sendt {new Date(unit.reportSentAt).toLocaleDateString('nb-NO')}
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              {!getUnitEmail(unit) ? (
-                                <Input
-                                  label="E-post til kunde"
-                                  type="email"
-                                  placeholder="kunde@example.no"
-                                  value={manualEmails[unit.id] || ''}
-                                  onChange={(e) => setManualEmails((prev) => ({ ...prev, [unit.id]: e.target.value }))}
-                                />
-                              ) : (
-                                <p className="text-xs text-gray-500">Sendes til: {getUnitEmail(unit)}</p>
-                              )}
-                              <Button
-                                size="sm"
-                                fullWidth
-                                variant="secondary"
-                                onClick={() => handleSendReport(unit)}
-                                isLoading={sendingReport === unit.id}
-                                disabled={!getUnitEmail(unit) && !manualEmails[unit.id]?.trim()}
-                              >
-                                <Send className="h-3.5 w-3.5" />
-                                Send rapport til kunde
-                              </Button>
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </div>
 
-                      {/* Complete unit */}
-                      <div className="pt-2 border-t border-gray-100">
+                      {/* After photo */}
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Etter-bilde</p>
+                        {unit.photoAfterUrl ? (
+                          <div className="relative">
+                            <img src={unit.photoAfterUrl} alt="Etter" className="w-full h-28 object-cover rounded-xl border border-gray-200" />
+                            <div className="flex gap-1 mt-1">
+                              <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
+                                Ta nytt
+                                <input type="file" accept="image/*" capture="environment" className="hidden"
+                                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
+                              </label>
+                              <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
+                                Last opp
+                                <input type="file" accept="image/*" className="hidden"
+                                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
+                              </label>
+                            </div>
+                          </div>
+                        ) : uploadingPhoto === `after-${unit.id}` ? (
+                          <div className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
+                            <span className="text-xs text-blue-500">Laster opp...</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
+                              <Camera className="h-4 w-4 text-gray-400" />
+                              <span className="text-xs text-gray-500">Ta bilde</span>
+                              <input type="file" accept="image/*" capture="environment" className="hidden"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
+                            </label>
+                            <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
+                              <ImageIcon className="h-4 w-4 text-gray-400" />
+                              <span className="text-xs text-gray-500">Kamerarull</span>
+                              <input type="file" accept="image/*" className="hidden"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── SEND RAPPORT ── */}
+                  <div>
+                    {unit.reportSentAt ? (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700 flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4" />
+                        Rapport sendt {new Date(unit.reportSentAt).toLocaleDateString('nb-NO')}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-500">Sendes til: hei@godtvedlikehold.no</p>
                         <Button
                           size="sm"
                           fullWidth
-                          onClick={() => handleCompleteUnit(unit.id)}
+                          onClick={() => handleSendReport(unit)}
+                          isLoading={sendingReport === unit.id}
+                          disabled={!(customerName[unit.id]?.trim() ?? unit.dwellingUnit.residentName)}
                         >
-                          <CheckCircle className="h-3.5 w-3.5" />
-                          Fullfør enhet
+                          <Send className="h-3.5 w-3.5" />
+                          Send rapport
                         </Button>
                       </div>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
             </Card>
