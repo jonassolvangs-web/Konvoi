@@ -58,6 +58,7 @@ interface WorkOrderUnit {
     residentName: string | null;
     residentPhone: string | null;
     residentEmail: string | null;
+    notes: string | null;
   };
   product: {
     name: string;
@@ -414,8 +415,8 @@ export default function TeknikerOppdragDetailPage() {
 
   const handleSendReport = async (unit: WorkOrderUnit) => {
     const recipientEmail = 'hei@godtvedlikehold.no';
-    const name = customerName[unit.id]?.trim();
-    const address = customerAddress[unit.id]?.trim();
+    const name = (customerName[unit.id] ?? unit.dwellingUnit.residentName ?? '').trim();
+    const address = (customerAddress[unit.id] ?? workOrder?.organization.address ?? '').trim();
 
     if (!name) {
       toast.error('Legg inn kundens navn');
@@ -432,9 +433,11 @@ export default function TeknikerOppdragDetailPage() {
 
       // Save customer info to dwelling unit
       const updateData: any = { dwellingUnitId: unit.dwellingUnit.id };
+      const email = (customerEmail[unit.id] ?? unit.dwellingUnit.residentEmail ?? '').trim();
+      const phone = (customerPhone[unit.id] ?? unit.dwellingUnit.residentPhone ?? '').trim();
       if (name) updateData.residentName = name;
-      if (customerEmail[unit.id]?.trim()) updateData.residentEmail = customerEmail[unit.id].trim();
-      if (customerPhone[unit.id]?.trim()) updateData.residentPhone = customerPhone[unit.id].trim();
+      if (email) updateData.residentEmail = email;
+      if (phone) updateData.residentPhone = phone;
 
       await fetch(`/api/work-orders/${id}`, {
         method: 'PUT',
@@ -452,8 +455,8 @@ export default function TeknikerOppdragDetailPage() {
         dwellingUnit: {
           ...unit.dwellingUnit,
           residentName: name,
-          residentPhone: customerPhone[unit.id]?.trim() || unit.dwellingUnit.residentPhone,
-          residentEmail: customerEmail[unit.id]?.trim() || unit.dwellingUnit.residentEmail,
+          residentPhone: phone || unit.dwellingUnit.residentPhone,
+          residentEmail: email || unit.dwellingUnit.residentEmail,
         },
       };
 
@@ -462,7 +465,7 @@ export default function TeknikerOppdragDetailPage() {
         organizationAddress: address,
         technicianName: workOrder.technician.name,
         technicianPhone: '',
-        technicianEmail: workOrder.technician.email,
+        technicianEmail: 'haavard@godtvedlikehold.no',
         completedDate,
         units: [unitWithCustomerInfo],
       }, baseUrl);
@@ -489,7 +492,7 @@ export default function TeknikerOppdragDetailPage() {
         body: JSON.stringify({
           to: recipientEmail,
           subject: `Rapport Ventilasjonsrens - ${name} - ${address}`,
-          html: greetingHtml,
+          html: reportHtml,
           pdfBase64,
         }),
       });
@@ -503,7 +506,7 @@ export default function TeknikerOppdragDetailPage() {
         body: JSON.stringify({ unitId: unit.id, reportSentAt: new Date().toISOString() }),
       });
 
-      toast.success('Rapport sendt til hei@godtvedlikehold.no');
+      toast.success('Rapport sendt!');
       fetchWorkOrder();
     } catch (err: any) {
       toast.error(err.message || 'Kunne ikke sende rapport');
@@ -615,20 +618,6 @@ export default function TeknikerOppdragDetailPage() {
         <StatusBadge type="workOrder" status={workOrder.status} size="md" />
       </div>
 
-      {/* Info cards */}
-      <Card className="mb-4">
-        <div className="grid grid-cols-2 gap-3 text-center">
-          <div>
-            <p className="text-lg font-bold">{workOrder.units.length}</p>
-            <p className="text-xs text-gray-500">Enheter</p>
-          </div>
-          <div>
-            <p className="text-lg font-bold">{totalPrice > 0 ? formatCurrency(totalPrice) : '–'}</p>
-            <p className="text-xs text-gray-500">Total</p>
-          </div>
-        </div>
-      </Card>
-
       {/* Schedule info */}
       <Card className="mb-4">
         <div className="flex items-center gap-1.5 text-sm text-gray-600">
@@ -685,76 +674,63 @@ export default function TeknikerOppdragDetailPage() {
                       <p className="text-sm font-semibold">
                         {unit.dwellingUnit.residentName || `Enhet ${unit.dwellingUnit.unitNumber}`}
                       </p>
-                      <div className="flex items-center gap-2">
-                        {unit.productName || unit.product?.name ? (
-                          <>
-                            <span className="text-xs text-gray-500">
-                              {unit.productName || unit.product?.name}
-                            </span>
-                            <span className="text-xs font-medium">{formatCurrency(unit.price)}</span>
-                            {unit.paymentPlanMonths != null && unit.paymentPlanMonths > 0 && (
-                              <span className="text-[10px] text-gray-400">
-                                {unit.paymentPlanMonths} mnd
-                              </span>
-                            )}
-                            {unit.paymentMethod && (
-                              <span className="text-[10px] text-gray-400 capitalize">
-                                {unit.paymentMethod}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-xs text-orange-500 font-medium">Velg produkt</span>
-                        )}
-                      </div>
-                      {unit.originalPrice != null && unit.originalPrice !== unit.price && (
-                        <p className="text-[10px] text-orange-500">
-                          Endret fra {unit.originalProduct} {formatCurrency(unit.originalPrice)}
-                        </p>
+                      {unit.dwellingUnit.notes && (
+                        <p className="text-xs text-gray-500">{unit.dwellingUnit.notes}</p>
+                      )}
+                      {unit.reportSentAt && (
+                        <span className="text-xs text-green-600">Rapport sendt</span>
                       )}
                     </div>
                   </div>
-                  <StatusBadge type="payment" status={unit.paymentStatus} />
                 </div>
               </div>
 
-              {/* Expanded content - simplified form */}
-              {isActive && workOrder.status === 'pagaar' && (
+              {/* Expanded content */}
+              {isActive && (workOrder.status === 'pagaar' || workOrder.status === 'fullfort') && (
                 <div className="border-t border-gray-100 p-4 space-y-4">
 
                   {/* ── KUNDEINFORMASJON ── */}
                   <div>
                     <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Kundeinformasjon</h4>
-                    <div className="space-y-3">
-                      <Input
-                        label="Navn"
-                        type="text"
-                        placeholder="Kundens fulle navn"
-                        value={customerName[unit.id] ?? unit.dwellingUnit.residentName ?? ''}
-                        onChange={(e) => setCustomerName((prev) => ({ ...prev, [unit.id]: e.target.value }))}
-                      />
-                      <Input
-                        label="E-post"
-                        type="email"
-                        placeholder="kunde@example.no"
-                        value={customerEmail[unit.id] ?? unit.dwellingUnit.residentEmail ?? ''}
-                        onChange={(e) => setCustomerEmail((prev) => ({ ...prev, [unit.id]: e.target.value }))}
-                      />
-                      <Input
-                        label="Telefon"
-                        type="tel"
-                        placeholder="999 99 999"
-                        value={customerPhone[unit.id] ?? unit.dwellingUnit.residentPhone ?? ''}
-                        onChange={(e) => setCustomerPhone((prev) => ({ ...prev, [unit.id]: e.target.value }))}
-                      />
-                      <Input
-                        label="Adresse"
-                        type="text"
-                        placeholder="Gateadresse, postnr sted"
-                        value={customerAddress[unit.id] ?? workOrder.organization.address ?? ''}
-                        onChange={(e) => setCustomerAddress((prev) => ({ ...prev, [unit.id]: e.target.value }))}
-                      />
-                    </div>
+                    {workOrder.status === 'fullfort' ? (
+                      <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 text-sm">
+                        <p><span className="text-gray-500">Navn:</span> <strong>{unit.dwellingUnit.residentName || '–'}</strong></p>
+                        <p><span className="text-gray-500">E-post:</span> {unit.dwellingUnit.residentEmail || '–'}</p>
+                        <p><span className="text-gray-500">Telefon:</span> {unit.dwellingUnit.residentPhone || '–'}</p>
+                        <p><span className="text-gray-500">Adresse:</span> {workOrder.organization.address || '–'}</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <Input
+                          label="Navn"
+                          type="text"
+                          placeholder="Kundens fulle navn"
+                          value={customerName[unit.id] ?? unit.dwellingUnit.residentName ?? ''}
+                          onChange={(e) => setCustomerName((prev) => ({ ...prev, [unit.id]: e.target.value }))}
+                        />
+                        <Input
+                          label="E-post"
+                          type="email"
+                          placeholder="kunde@example.no"
+                          value={customerEmail[unit.id] ?? unit.dwellingUnit.residentEmail ?? ''}
+                          onChange={(e) => setCustomerEmail((prev) => ({ ...prev, [unit.id]: e.target.value }))}
+                        />
+                        <Input
+                          label="Telefon"
+                          type="tel"
+                          placeholder="999 99 999"
+                          value={customerPhone[unit.id] ?? unit.dwellingUnit.residentPhone ?? ''}
+                          onChange={(e) => setCustomerPhone((prev) => ({ ...prev, [unit.id]: e.target.value }))}
+                        />
+                        <Input
+                          label="Adresse"
+                          type="text"
+                          placeholder="Gateadresse, postnr sted"
+                          value={customerAddress[unit.id] ?? workOrder.organization.address ?? ''}
+                          onChange={(e) => setCustomerAddress((prev) => ({ ...prev, [unit.id]: e.target.value }))}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* ── BILDER ── */}
@@ -770,37 +746,45 @@ export default function TeknikerOppdragDetailPage() {
                         {unit.photoBeforeUrl ? (
                           <div className="relative">
                             <img src={unit.photoBeforeUrl} alt="Før" className="w-full h-28 object-cover rounded-xl border border-gray-200" />
-                            <div className="flex gap-1 mt-1">
-                              <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
-                                Ta nytt
+                            {workOrder.status === 'pagaar' && (
+                              <div className="flex gap-1 mt-1">
+                                <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
+                                  Ta nytt
+                                  <input type="file" accept="image/*" capture="environment" className="hidden"
+                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
+                                </label>
+                                <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
+                                  Last opp
+                                  <input type="file" accept="image/*" className="hidden"
+                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
+                                </label>
+                              </div>
+                            )}
+                          </div>
+                        ) : workOrder.status === 'pagaar' ? (
+                          uploadingPhoto === `before-${unit.id}` ? (
+                            <div className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
+                              <span className="text-xs text-blue-500">Laster opp...</span>
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
+                                <Camera className="h-4 w-4 text-gray-400" />
+                                <span className="text-xs text-gray-500">Ta bilde</span>
                                 <input type="file" accept="image/*" capture="environment" className="hidden"
                                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
                               </label>
-                              <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
-                                Last opp
+                              <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
+                                <ImageIcon className="h-4 w-4 text-gray-400" />
+                                <span className="text-xs text-gray-500">Kamerarull</span>
                                 <input type="file" accept="image/*" className="hidden"
                                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
                               </label>
                             </div>
-                          </div>
-                        ) : uploadingPhoto === `before-${unit.id}` ? (
-                          <div className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
-                            <span className="text-xs text-blue-500">Laster opp...</span>
-                          </div>
+                          )
                         ) : (
-                          <div className="space-y-1.5">
-                            <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
-                              <Camera className="h-4 w-4 text-gray-400" />
-                              <span className="text-xs text-gray-500">Ta bilde</span>
-                              <input type="file" accept="image/*" capture="environment" className="hidden"
-                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
-                            </label>
-                            <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
-                              <ImageIcon className="h-4 w-4 text-gray-400" />
-                              <span className="text-xs text-gray-500">Kamerarull</span>
-                              <input type="file" accept="image/*" className="hidden"
-                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'before', f); }} />
-                            </label>
+                          <div className="flex items-center justify-center h-28 rounded-xl bg-gray-50 border border-gray-200">
+                            <span className="text-xs text-gray-400">Ingen bilde</span>
                           </div>
                         )}
                       </div>
@@ -811,37 +795,45 @@ export default function TeknikerOppdragDetailPage() {
                         {unit.photoAfterUrl ? (
                           <div className="relative">
                             <img src={unit.photoAfterUrl} alt="Etter" className="w-full h-28 object-cover rounded-xl border border-gray-200" />
-                            <div className="flex gap-1 mt-1">
-                              <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
-                                Ta nytt
+                            {workOrder.status === 'pagaar' && (
+                              <div className="flex gap-1 mt-1">
+                                <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
+                                  Ta nytt
+                                  <input type="file" accept="image/*" capture="environment" className="hidden"
+                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
+                                </label>
+                                <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
+                                  Last opp
+                                  <input type="file" accept="image/*" className="hidden"
+                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
+                                </label>
+                              </div>
+                            )}
+                          </div>
+                        ) : workOrder.status === 'pagaar' ? (
+                          uploadingPhoto === `after-${unit.id}` ? (
+                            <div className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
+                              <span className="text-xs text-blue-500">Laster opp...</span>
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
+                                <Camera className="h-4 w-4 text-gray-400" />
+                                <span className="text-xs text-gray-500">Ta bilde</span>
                                 <input type="file" accept="image/*" capture="environment" className="hidden"
                                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
                               </label>
-                              <label className="flex-1 text-center bg-gray-100 text-gray-600 text-[10px] py-1 rounded-lg cursor-pointer hover:bg-gray-200">
-                                Last opp
+                              <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
+                                <ImageIcon className="h-4 w-4 text-gray-400" />
+                                <span className="text-xs text-gray-500">Kamerarull</span>
                                 <input type="file" accept="image/*" className="hidden"
                                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
                               </label>
                             </div>
-                          </div>
-                        ) : uploadingPhoto === `after-${unit.id}` ? (
-                          <div className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50">
-                            <span className="text-xs text-blue-500">Laster opp...</span>
-                          </div>
+                          )
                         ) : (
-                          <div className="space-y-1.5">
-                            <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
-                              <Camera className="h-4 w-4 text-gray-400" />
-                              <span className="text-xs text-gray-500">Ta bilde</span>
-                              <input type="file" accept="image/*" capture="environment" className="hidden"
-                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
-                            </label>
-                            <label className="flex items-center justify-center gap-1.5 h-14 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-gray-400 transition-colors">
-                              <ImageIcon className="h-4 w-4 text-gray-400" />
-                              <span className="text-xs text-gray-500">Kamerarull</span>
-                              <input type="file" accept="image/*" className="hidden"
-                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(unit.id, 'after', f); }} />
-                            </label>
+                          <div className="flex items-center justify-center h-28 rounded-xl bg-gray-50 border border-gray-200">
+                            <span className="text-xs text-gray-400">Ingen bilde</span>
                           </div>
                         )}
                       </div>
@@ -855,7 +847,7 @@ export default function TeknikerOppdragDetailPage() {
                         <CheckCircle className="h-4 w-4" />
                         Rapport sendt {new Date(unit.reportSentAt).toLocaleDateString('nb-NO')}
                       </div>
-                    ) : (
+                    ) : workOrder.status === 'pagaar' ? (
                       <div className="space-y-2">
                         <p className="text-xs text-gray-500">Sendes til: hei@godtvedlikehold.no</p>
                         <Button
@@ -869,7 +861,7 @@ export default function TeknikerOppdragDetailPage() {
                           Send rapport
                         </Button>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )}
