@@ -16,6 +16,7 @@ interface TechVisit {
   postalCode: string | null;
   city: string | null;
   ownerName: string | null;
+  ownerBirthDate: string | null;
   residentName: string | null;
   ownerPhone: string | null;
   status: string;
@@ -111,12 +112,12 @@ export default function TeknikerBesokPage() {
               <div className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-3">
-                    <div className="h-11 w-11 rounded-lg bg-gray-900 text-white flex items-center justify-center text-sm font-bold">
+                    <div className="h-11 min-w-[52px] px-2 rounded-lg bg-gray-900 text-white flex items-center justify-center text-xs font-bold">
                       {visit.unitNumber}
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold">{visit.residentName || visit.ownerName || 'Ukjent'}</h3>
-                      <p className="text-xs text-gray-500">{formatDate(visit.createdAt)}</p>
+                      <h3 className="text-sm font-semibold">{visit.ownerName || visit.residentName || 'Ukjent'}</h3>
+                      {visit.ownerBirthDate && <p className="text-xs text-gray-500">{visit.ownerBirthDate}</p>}
                     </div>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[visit.status] || 'bg-gray-100 text-gray-600'}`}>
