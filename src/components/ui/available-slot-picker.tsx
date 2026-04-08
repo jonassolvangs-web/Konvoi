@@ -6,9 +6,9 @@ import { nb } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import LoadingSpinner from './loading-spinner';
 
-// All 30-min slots from 07:00 to 18:30
-const TIME_SLOTS = Array.from({ length: 24 }, (_, i) => {
-  const hour = 7 + Math.floor(i / 2);
+// All 30-min slots for the full day (00:00 to 23:30)
+const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
+  const hour = Math.floor(i / 2);
   const min = i % 2 === 0 ? '00' : '30';
   return `${String(hour).padStart(2, '0')}:${min}`;
 });

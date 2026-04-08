@@ -133,8 +133,8 @@ export async function GET(req: NextRequest) {
             end: timeToMinutes(t.endTime),
           }));
         } else {
-          // Default: available 07:00–19:00 (matches technician calendar default)
-          availableRanges = [{ start: timeToMinutes('07:00'), end: timeToMinutes('19:00') }];
+          // Default: available entire day
+          availableRanges = [{ start: 0, end: 1440 }];
         }
       }
 
