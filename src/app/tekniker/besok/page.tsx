@@ -158,7 +158,10 @@ export default function TeknikerBesokPage() {
                                   {visit.unitNumber}
                                 </div>
                                 <div>
-                                  <h3 className="text-sm font-semibold">{visit.ownerName || visit.residentName || 'Ukjent'}</h3>
+                                  <h3 className="text-sm font-semibold">
+                                {visit.ownerName || 'Ukjent'}
+                                {visit.residentName && <span className="font-normal text-gray-500"> ({visit.residentName})</span>}
+                              </h3>
                                   {visit.ownerBirthDate && <p className="text-xs text-gray-500">Født: {visit.ownerBirthDate}</p>}
                                 </div>
                               </div>

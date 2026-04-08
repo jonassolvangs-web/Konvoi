@@ -192,11 +192,14 @@ export default function BesokDetailPage() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="flex items-center gap-3 flex-1">
-          <div className="h-12 w-12 rounded-lg bg-gray-900 text-white flex items-center justify-center text-base font-bold">
+          <div className="h-12 min-w-[56px] px-2 rounded-lg bg-gray-900 text-white flex items-center justify-center text-sm font-bold">
             {visit.unitNumber}
           </div>
           <div>
-            <h1 className="text-lg font-bold">{visit.residentName || visit.ownerName || 'Ukjent'}</h1>
+            <h1 className="text-lg font-bold">
+              {visit.ownerName || 'Ukjent'}
+              {visit.residentName && <span className="text-sm font-normal text-gray-500"> ({visit.residentName})</span>}
+            </h1>
             <p className="text-xs text-gray-500">{visit.address}</p>
           </div>
         </div>
