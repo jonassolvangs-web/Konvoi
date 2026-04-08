@@ -175,7 +175,7 @@ export default function AvailableSlotPicker({
       {activeDate && (
         <div>
           <label className="label">Tid</label>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-2 max-h-[280px] overflow-y-auto rounded-xl border border-gray-100 p-2">
             {TIME_SLOTS.map((time) => {
               const state = getSlotState(time);
               const isUserSelected = selectedDate === activeDate && selectedTime === time;
