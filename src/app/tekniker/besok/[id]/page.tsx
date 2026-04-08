@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import {
   ArrowLeft, MapPin, Phone, User, Home, Calendar,
   Clock, Trash2, ExternalLink,
 } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
-import Input from '@/components/ui/input';
+import AvailableSlotPicker from '@/components/ui/available-slot-picker';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import EmptyState from '@/components/ui/empty-state';
 import { formatDate, formatTime } from '@/lib/utils';
@@ -37,13 +38,15 @@ interface TechVisit {
 export default function BesokDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: session } = useSession();
+  const userId = (session?.user as any)?.id as string | undefined;
   const [visit, setVisit] = useState<TechVisit | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
   // Create order state
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('09:00');
+  const [scheduledDate, setScheduledDate] = useState<string | null>(null);
+  const [scheduledTime, setScheduledTime] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -80,8 +83,8 @@ export default function BesokDetailPage() {
   };
 
   const handleCreateOrder = async () => {
-    if (!scheduledDate) {
-      toast.error('Velg dato');
+    if (!scheduledDate || !scheduledTime) {
+      toast.error('Velg dato og tid');
       return;
     }
 
@@ -222,25 +225,26 @@ export default function BesokDetailPage() {
           <h2 className="text-sm font-semibold mb-4">Opprett bestilling</h2>
 
           <div className="space-y-4">
-            {/* Date and time */}
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Dato"
-                type="date"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
+            {userId && (
+              <AvailableSlotPicker
+                userId={userId}
+                onSelect={(date, time) => {
+                  setScheduledDate(date);
+                  setScheduledTime(time);
+                }}
+                selectedDate={scheduledDate}
+                selectedTime={scheduledTime}
               />
-              <Input
-                label="Klokkeslett"
-                type="time"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-              />
-            </div>
+            )}
 
-            <Button fullWidth onClick={handleCreateOrder} isLoading={creating}>
+            <Button
+              fullWidth
+              onClick={handleCreateOrder}
+              isLoading={creating}
+              disabled={!scheduledDate || !scheduledTime}
+            >
               <Calendar className="h-4 w-4" />
-              Opprett bestilling
+              Opprett bestilling {scheduledDate && scheduledTime ? `${scheduledTime}` : ''}
             </Button>
           </div>
         </Card>
