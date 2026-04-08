@@ -11,8 +11,7 @@ import Button from '@/components/ui/button';
 import Input from '@/components/ui/input';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import EmptyState from '@/components/ui/empty-state';
-import { formatDate, formatTime, formatCurrency } from '@/lib/utils';
-import { productsByOrderType } from '@/lib/constants';
+import { formatDate, formatTime } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 interface TechVisit {
@@ -45,9 +44,6 @@ export default function BesokDetailPage() {
   // Create order state
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('09:00');
-  const [orderType, setOrderType] = useState('ventilasjonsrens');
-  const [selectedProduct, setSelectedProduct] = useState('');
-  const [selectedPrice, setSelectedPrice] = useState(0);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -64,15 +60,6 @@ export default function BesokDetailPage() {
     }
     fetchVisit();
   }, [id]);
-
-  // Set default product when order type changes
-  useEffect(() => {
-    const products = productsByOrderType[orderType] || [];
-    if (products.length > 0) {
-      setSelectedProduct(products[0].name);
-      setSelectedPrice(products[0].price);
-    }
-  }, [orderType]);
 
   const handleDelete = async () => {
     if (!confirm('Er du sikker på at du vil slette dette besøket?')) return;
@@ -104,12 +91,7 @@ export default function BesokDetailPage() {
       const res = await fetch(`/api/tech-visits/${id}/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scheduledAt,
-          orderType,
-          product: selectedProduct,
-          price: selectedPrice,
-        }),
+        body: JSON.stringify({ scheduledAt }),
       });
 
       if (!res.ok) {
@@ -132,8 +114,6 @@ export default function BesokDetailPage() {
   if (loading) return <LoadingSpinner />;
   if (!visit) return <EmptyState title="Ikke funnet" description="Besøket ble ikke funnet" />;
 
-  const products = productsByOrderType[orderType] || [];
-
   return (
     <div className="page-container">
       {/* Header */}
@@ -141,9 +121,14 @@ export default function BesokDetailPage() {
         <button onClick={() => router.back()} className="p-2 rounded-lg hover:bg-gray-100">
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <div className="flex-1">
-          <h1 className="text-lg font-bold">Besøk {visit.unitNumber}</h1>
-          <p className="text-xs text-gray-500">{visit.address}</p>
+        <div className="flex items-center gap-3 flex-1">
+          <div className="h-12 w-12 rounded-lg bg-gray-900 text-white flex items-center justify-center text-base font-bold">
+            {visit.unitNumber}
+          </div>
+          <div>
+            <h1 className="text-lg font-bold">{visit.residentName || visit.ownerName || 'Ukjent'}</h1>
+            <p className="text-xs text-gray-500">{visit.address}</p>
+          </div>
         </div>
         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
           visit.status === 'bestilt' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
@@ -175,9 +160,13 @@ export default function BesokDetailPage() {
               <User className="h-4 w-4 text-gray-400" />
               <span className="text-gray-500">Eier:</span>
               <span className="font-medium">{visit.ownerName}</span>
-              {visit.ownerBirthDate && (
-                <span className="text-gray-400 text-xs">({visit.ownerBirthDate})</span>
-              )}
+            </div>
+          )}
+          {visit.ownerBirthDate && (
+            <div className="flex items-center gap-2 text-sm">
+              <Calendar className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-500">Født:</span>
+              <span className="font-semibold text-base">{visit.ownerBirthDate}</span>
             </div>
           )}
           {visit.ownerPhone && (
@@ -247,45 +236,6 @@ export default function BesokDetailPage() {
                 value={scheduledTime}
                 onChange={(e) => setScheduledTime(e.target.value)}
               />
-            </div>
-
-            {/* Order type */}
-            <div>
-              <label className="label">Ordretype</label>
-              <div className="flex gap-2">
-                {['ventilasjonsrens', 'service'].map((ot) => (
-                  <button
-                    key={ot}
-                    type="button"
-                    onClick={() => setOrderType(ot)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-                      orderType === ot ? 'bg-black text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {ot === 'ventilasjonsrens' ? 'Ventilasjonsrens' : 'Service'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Product */}
-            <div>
-              <label className="label">Produkt</label>
-              <div className="grid grid-cols-3 gap-2">
-                {products.map((p) => (
-                  <button
-                    key={p.name}
-                    type="button"
-                    onClick={() => { setSelectedProduct(p.name); setSelectedPrice(p.price); }}
-                    className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                      selectedProduct === p.name ? 'bg-black text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <span className="text-sm font-medium block">{p.label}</span>
-                    <span className="text-xs block mt-0.5">{formatCurrency(p.price)}</span>
-                  </button>
-                ))}
-              </div>
             </div>
 
             <Button fullWidth onClick={handleCreateOrder} isLoading={creating}>

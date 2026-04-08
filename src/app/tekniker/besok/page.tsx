@@ -110,8 +110,8 @@ export default function TeknikerBesokPage() {
             >
               <div className="p-4">
                 <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-9 w-9 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-bold">
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-lg bg-gray-900 text-white flex items-center justify-center text-sm font-bold">
                       {visit.unitNumber}
                     </div>
                     <div>
