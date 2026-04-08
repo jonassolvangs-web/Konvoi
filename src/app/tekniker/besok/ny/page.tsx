@@ -19,6 +19,7 @@ export default function NyttBesokPage() {
   const [ownerName, setOwnerName] = useState('');
   const [ownerBirthDate, setOwnerBirthDate] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
   const [residentName, setResidentName] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -43,6 +44,7 @@ export default function NyttBesokPage() {
           ownerName: ownerName.trim() || undefined,
           ownerBirthDate: ownerBirthDate.trim() || undefined,
           ownerPhone: ownerPhone.trim() || undefined,
+          ownerEmail: ownerEmail.trim() || undefined,
           residentName: residentName.trim() || undefined,
           notes: notes.trim() || undefined,
         }),
@@ -125,6 +127,13 @@ export default function NyttBesokPage() {
               onChange={(e) => setOwnerPhone(e.target.value)}
             />
           </div>
+          <Input
+            label="E-post"
+            placeholder="eier@example.no"
+            type="email"
+            value={ownerEmail}
+            onChange={(e) => setOwnerEmail(e.target.value)}
+          />
         </Card>
 
         <Card className="space-y-4 mb-6">

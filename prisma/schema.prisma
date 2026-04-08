@@ -370,6 +370,7 @@ model TechVisit {
   ownerName       String?  @map("owner_name")
   ownerBirthDate  String?  @map("owner_birth_date")
   ownerPhone      String?  @map("owner_phone")
+  ownerEmail      String?  @map("owner_email")
   residentName    String?  @map("resident_name")
   notes           String?
   status          String   @default("ny") // ny | bestilt

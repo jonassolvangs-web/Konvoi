@@ -11,6 +11,7 @@ const createVisitSchema = z.object({
   ownerName: z.string().optional(),
   ownerBirthDate: z.string().optional(),
   ownerPhone: z.string().optional(),
+  ownerEmail: z.string().optional(),
   residentName: z.string().optional(),
   notes: z.string().optional(),
 });

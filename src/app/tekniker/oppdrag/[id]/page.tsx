@@ -75,6 +75,7 @@ interface TechVisitInfo {
   ownerName: string | null;
   ownerBirthDate: string | null;
   ownerPhone: string | null;
+  ownerEmail: string | null;
   residentName: string | null;
   notes: string | null;
 }
@@ -662,6 +663,12 @@ export default function TeknikerOppdragDetailPage() {
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-gray-500">Telefon:</span>
                   <a href={`tel:${tv.ownerPhone}`} className="font-medium text-blue-600">{tv.ownerPhone}</a>
+                </div>
+              )}
+              {tv.ownerEmail && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-500">E-post:</span>
+                  <a href={`mailto:${tv.ownerEmail}`} className="font-medium text-blue-600">{tv.ownerEmail}</a>
                 </div>
               )}
               {tv.residentName && (

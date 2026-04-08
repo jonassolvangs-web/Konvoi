@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         techVisits: {
           select: {
             id: true, unitNumber: true, address: true, postalCode: true, city: true,
-            ownerName: true, ownerBirthDate: true, ownerPhone: true,
+            ownerName: true, ownerBirthDate: true, ownerPhone: true, ownerEmail: true,
             residentName: true, notes: true,
           },
         },

@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         techVisits: {
           select: {
             id: true, unitNumber: true, ownerName: true, ownerBirthDate: true,
-            ownerPhone: true, residentName: true, notes: true,
+            ownerPhone: true, ownerEmail: true, residentName: true, notes: true,
           },
         },
       },
