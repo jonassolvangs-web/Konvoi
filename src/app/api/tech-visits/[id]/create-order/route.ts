@@ -86,13 +86,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         });
       }
 
-      // Create dwelling unit
+      // Create dwelling unit — use owner as primary name, fallback to resident
       const dwellingUnit = await tx.dwellingUnit.create({
         data: {
           organizationId: org.id,
           unitNumber: visit.unitNumber,
-          residentName: visit.residentName,
+          residentName: visit.ownerName || visit.residentName,
           residentPhone: visit.ownerPhone,
+          residentEmail: visit.ownerEmail,
           visitStatus: 'solgt',
         },
       });
