@@ -66,6 +66,19 @@ interface WorkOrderUnit {
   } | null;
 }
 
+interface TechVisitInfo {
+  id: string;
+  unitNumber: string;
+  address: string;
+  postalCode: string | null;
+  city: string | null;
+  ownerName: string | null;
+  ownerBirthDate: string | null;
+  ownerPhone: string | null;
+  residentName: string | null;
+  notes: string | null;
+}
+
 interface WorkOrder {
   id: string;
   scheduledAt: string;
@@ -82,6 +95,7 @@ interface WorkOrder {
   };
   technician: { name: string; email: string };
   units: WorkOrderUnit[];
+  techVisits: TechVisitInfo[];
 }
 
 export default function TeknikerOppdragDetailPage() {
@@ -625,6 +639,44 @@ export default function TeknikerOppdragDetailPage() {
           <span>{formatDate(workOrder.scheduledAt)} kl. {formatTime(workOrder.scheduledAt)}</span>
         </div>
       </Card>
+
+      {/* Tech visit info (from besøk) */}
+      {workOrder.techVisits.length > 0 && (
+        <Card className="mb-4">
+          <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Besøksinfo</h2>
+          {workOrder.techVisits.map((tv) => (
+            <div key={tv.id} className="space-y-2">
+              {tv.ownerName && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-500">Eier:</span>
+                  <span className="font-semibold">{tv.ownerName}</span>
+                </div>
+              )}
+              {tv.ownerBirthDate && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-500">Født:</span>
+                  <span className="font-medium">{tv.ownerBirthDate}</span>
+                </div>
+              )}
+              {tv.ownerPhone && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-500">Telefon:</span>
+                  <a href={`tel:${tv.ownerPhone}`} className="font-medium text-blue-600">{tv.ownerPhone}</a>
+                </div>
+              )}
+              {tv.residentName && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-500">Beboer:</span>
+                  <span className="font-medium">{tv.residentName}</span>
+                </div>
+              )}
+              {tv.notes && (
+                <div className="mt-1 p-2 bg-gray-50 rounded-lg text-sm text-gray-600">{tv.notes}</div>
+              )}
+            </div>
+          ))}
+        </Card>
+      )}
 
       {/* Action buttons */}
       <div className="flex gap-2 mb-4">

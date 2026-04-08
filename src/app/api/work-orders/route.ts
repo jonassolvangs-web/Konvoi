@@ -41,6 +41,12 @@ export async function GET(req: NextRequest) {
             product: true,
           },
         },
+        techVisits: {
+          select: {
+            id: true, unitNumber: true, ownerName: true, ownerBirthDate: true,
+            ownerPhone: true, residentName: true, notes: true,
+          },
+        },
       },
       orderBy: { scheduledAt: 'asc' },
     });

@@ -19,6 +19,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           },
           orderBy: { createdAt: 'asc' },
         },
+        techVisits: {
+          select: {
+            id: true, unitNumber: true, address: true, postalCode: true, city: true,
+            ownerName: true, ownerBirthDate: true, ownerPhone: true,
+            residentName: true, notes: true,
+          },
+        },
       },
     });
 
