@@ -6,8 +6,15 @@ import { nb } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import LoadingSpinner from './loading-spinner';
 
-// All 30-min slots for the full day (00:00 to 23:30)
-const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
+// Standard slots 07:00–19:30
+const STANDARD_SLOTS = Array.from({ length: 26 }, (_, i) => {
+  const hour = 7 + Math.floor(i / 2);
+  const min = i % 2 === 0 ? '00' : '30';
+  return `${String(hour).padStart(2, '0')}:${min}`;
+});
+
+// All 48 slots for custom time input
+const ALL_SLOTS = Array.from({ length: 48 }, (_, i) => {
   const hour = Math.floor(i / 2);
   const min = i % 2 === 0 ? '00' : '30';
   return `${String(hour).padStart(2, '0')}:${min}`;
@@ -45,6 +52,7 @@ export default function AvailableSlotPicker({
   const [slotsData, setSlotsData] = useState<Record<string, DaySlots>>({});
   const [loading, setLoading] = useState(true);
   const [activeDate, setActiveDate] = useState<string | null>(selectedDate || null);
+  const [showCustomTime, setShowCustomTime] = useState(false);
   const initialLoadDone = useRef(false);
 
   const fetchSlots = useCallback(async (isInitial = false) => {
@@ -58,7 +66,6 @@ export default function AvailableSlotPicker({
       const res = await fetch(`/api/availability/slots?userId=${userId}&from=${from}&to=${to}&slotDuration=${slotDuration}`);
       const data = await res.json();
       setSlotsData(data.slots || {});
-      // Auto-select first available date on initial load
       if (isInitial) {
         const dates = Object.keys(data.slots || {}).sort();
         const firstWithSlots = dates.find((d) => (data.slots[d]?.slots?.length || 0) > 0);
@@ -73,13 +80,11 @@ export default function AvailableSlotPicker({
     }
   }, [userId, slotDuration, daysAhead, selectedDate]);
 
-  // Initial fetch
   useEffect(() => {
     initialLoadDone.current = false;
     fetchSlots(true).then(() => { initialLoadDone.current = true; });
   }, [fetchSlots]);
 
-  // Auto-refresh every 15 seconds to catch bookings from other users
   useEffect(() => {
     if (!userId) return;
     const interval = setInterval(() => {
@@ -96,7 +101,6 @@ export default function AvailableSlotPicker({
     );
   }
 
-  // Show dates that have any availability ranges (not just free slots)
   const allDates = Object.keys(slotsData).sort();
   const datesWithAvailability = allDates.filter(
     (d) => slotsData[d].availableRanges?.length > 0 || slotsData[d].slots.length > 0
@@ -114,11 +118,9 @@ export default function AvailableSlotPicker({
   const dayData = activeDate ? slotsData[activeDate] : null;
   const availableSlotTimes = new Set(dayData?.slots.map((s) => s.time) || []);
 
-  // Determine slot state: 'available' | 'booked' | 'unavailable'
   const getSlotState = (time: string): 'available' | 'booked' | 'unavailable' => {
     if (!dayData) return 'unavailable';
 
-    // Check if booked (slot falls within a booking's 2h window)
     const [th, tm] = time.split(':').map(Number);
     const timeMin = th * 60 + tm;
     const isBooked = dayData.bookings?.some((b) => {
@@ -126,17 +128,18 @@ export default function AvailableSlotPicker({
     });
     if (isBooked) return 'booked';
 
-    // Check if available (in the free slots list)
     if (availableSlotTimes.has(time)) return 'available';
 
-    // Check if within availability range but taken by booking
     const inAvailableRange = dayData.availableRanges?.some((r) => {
       return time >= r.start && time < r.end;
     });
-    if (inAvailableRange) return 'booked'; // within range but not free = booked
+    if (inAvailableRange) return 'booked';
 
     return 'unavailable';
   };
+
+  // Check if selected time is outside standard range
+  const selectedOutsideStandard = selectedTime && !STANDARD_SLOTS.includes(selectedTime);
 
   return (
     <div className="space-y-4">
@@ -151,7 +154,7 @@ export default function AvailableSlotPicker({
             return (
               <button
                 key={dateStr}
-                onClick={() => setActiveDate(dateStr)}
+                onClick={() => { setActiveDate(dateStr); setShowCustomTime(false); }}
                 className={cn(
                   'flex flex-col items-center min-w-[52px] px-2 py-2 rounded-xl text-xs transition-colors',
                   isSelected
@@ -171,12 +174,21 @@ export default function AvailableSlotPicker({
         </div>
       </div>
 
-      {/* Time grid — all slots with color coding */}
+      {/* Time grid */}
       {activeDate && (
         <div>
-          <label className="label">Tid</label>
-          <div className="grid grid-cols-4 gap-2 max-h-[280px] overflow-y-auto rounded-xl border border-gray-100 p-2">
-            {TIME_SLOTS.map((time) => {
+          <div className="flex items-center justify-between mb-1">
+            <label className="label mb-0">Tid</label>
+            <button
+              onClick={() => setShowCustomTime(!showCustomTime)}
+              className="text-xs text-blue-600 hover:text-blue-800"
+            >
+              {showCustomTime ? '07:00–20:00' : 'Annet tidspunkt'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2">
+            {(showCustomTime ? ALL_SLOTS : STANDARD_SLOTS).map((time) => {
               const state = getSlotState(time);
               const isUserSelected = selectedDate === activeDate && selectedTime === time;
               return (
@@ -203,6 +215,13 @@ export default function AvailableSlotPicker({
             })}
           </div>
 
+          {/* Show selected outside-range time */}
+          {selectedOutsideStandard && !showCustomTime && selectedDate === activeDate && (
+            <div className="mt-2 text-sm text-center">
+              Valgt: <span className="font-semibold">{selectedTime}</span>
+            </div>
+          )}
+
           {/* Legend */}
           <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
             <div className="flex items-center gap-1.5">
@@ -212,10 +231,6 @@ export default function AvailableSlotPicker({
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded bg-red-100 border border-red-200" />
               <span>Booket</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-gray-100 border border-gray-200" />
-              <span>Utilgjengelig</span>
             </div>
           </div>
         </div>
