@@ -22,6 +22,7 @@ export const motebookerTabs = [
   { id: 'kart', label: 'Kart', href: '/motebooker/kart', icon: Map },
   { id: 'kalender', label: 'Kalender', href: '/motebooker/kalender', icon: Calendar },
   { id: 'oversikt', label: 'Oversikt', href: '/motebooker/oversikt', icon: List },
+  { id: 'maler', label: 'Maler', href: '/motebooker/maler', icon: FileText },
   { id: 'chat', label: 'Chat', href: '/motebooker/chat', icon: MessageSquare },
   { id: 'profil', label: 'Profil', href: '/motebooker/profil', icon: User },
 ];
@@ -37,6 +38,7 @@ export const feltselgerTabs = [
 
 export const teknikerTabs = [
   { id: 'oppdrag', label: 'Mine oppdrag', href: '/tekniker/oppdrag', icon: Wrench },
+  { id: 'besok', label: 'Besøk', href: '/tekniker/besok', icon: ClipboardList },
   { id: 'kalender', label: 'Kalender', href: '/tekniker/kalender', icon: Calendar },
   { id: 'chat', label: 'Chat', href: '/tekniker/chat', icon: MessageSquare },
   { id: 'profil', label: 'Profil', href: '/tekniker/profil', icon: User },

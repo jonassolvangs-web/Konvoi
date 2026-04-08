@@ -35,6 +35,7 @@ model User {
   availability          Availability[]
   pushSubscriptions     PushSubscription[]
   territories           Territory[]
+  techVisits            TechVisit[]
 
   @@map("users")
 }
@@ -58,6 +59,7 @@ model Organization {
   chairmanEmail         String?  @map("chairman_email")
   status                String   @default("ikke_tildelt") // OrgStatus
   notes                 String?
+  isSameie              Boolean  @default(false) @map("is_sameie")
   assignedToId          String?  @map("assigned_to_id")
   assignedTo            User?    @relation("AssignedTo", fields: [assignedToId], references: [id])
   lastContactedAt       DateTime? @map("last_contacted_at")
@@ -178,6 +180,7 @@ model WorkOrder {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   units WorkOrderUnit[]
+  techVisits TechVisit[]
 
   @@map("work_orders")
 }
@@ -354,4 +357,26 @@ model SmsTemplate {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("sms_templates")
+}
+
+model TechVisit {
+  id              String   @id @default(cuid())
+  technicianId    String   @map("technician_id")
+  technician      User     @relation(fields: [technicianId], references: [id])
+  unitNumber      String   @map("unit_number")
+  address         String
+  postalCode      String?  @map("postal_code")
+  city            String?
+  ownerName       String?  @map("owner_name")
+  ownerBirthDate  String?  @map("owner_birth_date")
+  ownerPhone      String?  @map("owner_phone")
+  residentName    String?  @map("resident_name")
+  notes           String?
+  status          String   @default("ny") // ny | bestilt
+  workOrderId     String?  @map("work_order_id")
+  workOrder       WorkOrder? @relation(fields: [workOrderId], references: [id])
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("tech_visits")
 }
