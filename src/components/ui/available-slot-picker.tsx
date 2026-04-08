@@ -124,7 +124,7 @@ export default function AvailableSlotPicker({
     const [th, tm] = time.split(':').map(Number);
     const timeMin = th * 60 + tm;
     const isBooked = dayData.bookings?.some((b) => {
-      return timeMin >= b.minutes && timeMin < b.minutes + 120;
+      return timeMin >= b.minutes && timeMin < b.minutes + 30;
     });
     if (isBooked) return 'booked';
 

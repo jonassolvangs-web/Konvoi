@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
         return {
           date: toDateString(d),
           start: startMin,
-          end: startMin + 120, // assume 2h per work order
+          end: startMin + 30, // block only the booked slot
         };
       });
     } else {
