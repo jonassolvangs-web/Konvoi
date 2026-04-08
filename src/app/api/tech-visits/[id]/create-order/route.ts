@@ -136,26 +136,35 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const dateStr = schedDate.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const timeStr = schedDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
 
-    resend.emails.send({
-      from: `Godt Vedlikehold <${fromEmail}>`,
-      to: NOTIFY_EMAIL,
-      subject: `Ny bestilling – ${visit.ownerName || visit.address}`,
-      html: `
-        <h2>Ny bestilling fra besøk</h2>
-        <table style="border-collapse:collapse;font-family:sans-serif;">
-          <tr><td style="padding:4px 12px 4px 0;color:#666;">Tekniker</td><td style="padding:4px 0;font-weight:600;">${techUser?.name || 'Ukjent'}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;color:#666;">Eier</td><td style="padding:4px 0;font-weight:600;">${visit.ownerName || '–'}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;color:#666;">Adresse</td><td style="padding:4px 0;font-weight:600;">${visit.address}${visit.postalCode ? `, ${visit.postalCode}` : ''}${visit.city ? ` ${visit.city}` : ''}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;color:#666;">Leilighet</td><td style="padding:4px 0;font-weight:600;">${visit.unitNumber}</td></tr>
-          ${visit.ownerPhone ? `<tr><td style="padding:4px 12px 4px 0;color:#666;">Telefon</td><td style="padding:4px 0;font-weight:600;">${visit.ownerPhone}</td></tr>` : ''}
-          ${visit.ownerEmail ? `<tr><td style="padding:4px 12px 4px 0;color:#666;">E-post</td><td style="padding:4px 0;font-weight:600;">${visit.ownerEmail}</td></tr>` : ''}
-          ${visit.residentName ? `<tr><td style="padding:4px 12px 4px 0;color:#666;">Beboer</td><td style="padding:4px 0;font-weight:600;">${visit.residentName}</td></tr>` : ''}
-          <tr><td style="padding:4px 12px 4px 0;color:#666;">Dato</td><td style="padding:4px 0;font-weight:600;">${dateStr}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;color:#666;">Tid</td><td style="padding:4px 0;font-weight:600;">${timeStr}</td></tr>
-          ${visit.notes ? `<tr><td style="padding:4px 12px 4px 0;color:#666;">Notat</td><td style="padding:4px 0;">${visit.notes}</td></tr>` : ''}
-        </table>
-      `,
-    }).catch((err) => console.error('Email notification error:', err));
+    try {
+      const { data: emailData, error: emailError } = await resend.emails.send({
+        from: `Godt Vedlikehold <${fromEmail}>`,
+        to: NOTIFY_EMAIL,
+        subject: `Ny bestilling – ${visit.ownerName || visit.address}`,
+        html: `
+          <h2>Ny bestilling fra besøk</h2>
+          <table style="border-collapse:collapse;font-family:sans-serif;">
+            <tr><td style="padding:4px 12px 4px 0;color:#666;">Tekniker</td><td style="padding:4px 0;font-weight:600;">${techUser?.name || 'Ukjent'}</td></tr>
+            <tr><td style="padding:4px 12px 4px 0;color:#666;">Eier</td><td style="padding:4px 0;font-weight:600;">${visit.ownerName || '–'}</td></tr>
+            <tr><td style="padding:4px 12px 4px 0;color:#666;">Adresse</td><td style="padding:4px 0;font-weight:600;">${visit.address}${visit.postalCode ? `, ${visit.postalCode}` : ''}${visit.city ? ` ${visit.city}` : ''}</td></tr>
+            <tr><td style="padding:4px 12px 4px 0;color:#666;">Leilighet</td><td style="padding:4px 0;font-weight:600;">${visit.unitNumber}</td></tr>
+            ${visit.ownerPhone ? `<tr><td style="padding:4px 12px 4px 0;color:#666;">Telefon</td><td style="padding:4px 0;font-weight:600;">${visit.ownerPhone}</td></tr>` : ''}
+            ${visit.ownerEmail ? `<tr><td style="padding:4px 12px 4px 0;color:#666;">E-post</td><td style="padding:4px 0;font-weight:600;">${visit.ownerEmail}</td></tr>` : ''}
+            ${visit.residentName ? `<tr><td style="padding:4px 12px 4px 0;color:#666;">Beboer</td><td style="padding:4px 0;font-weight:600;">${visit.residentName}</td></tr>` : ''}
+            <tr><td style="padding:4px 12px 4px 0;color:#666;">Dato</td><td style="padding:4px 0;font-weight:600;">${dateStr}</td></tr>
+            <tr><td style="padding:4px 12px 4px 0;color:#666;">Tid</td><td style="padding:4px 0;font-weight:600;">${timeStr}</td></tr>
+            ${visit.notes ? `<tr><td style="padding:4px 12px 4px 0;color:#666;">Notat</td><td style="padding:4px 0;">${visit.notes}</td></tr>` : ''}
+          </table>
+        `,
+      });
+      if (emailError) {
+        console.error('Resend email error:', JSON.stringify(emailError));
+      } else {
+        console.log('Email notification sent:', emailData?.id);
+      }
+    } catch (emailErr) {
+      console.error('Email notification exception:', emailErr);
+    }
 
     return NextResponse.json({ workOrder: result }, { status: 201 });
   } catch (error: any) {
