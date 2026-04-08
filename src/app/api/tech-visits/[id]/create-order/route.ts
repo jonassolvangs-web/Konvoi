@@ -38,6 +38,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const { scheduledAt, orderType, product, price } = parsed.data;
 
+    // Double-booking check: ensure no existing work order at this time for this technician
+    const scheduledDate = new Date(scheduledAt);
+    const twoHoursLater = new Date(scheduledDate.getTime() + 2 * 60 * 60 * 1000);
+    const twoHoursBefore = new Date(scheduledDate.getTime() - 2 * 60 * 60 * 1000);
+
+    const conflicting = await prisma.workOrder.findFirst({
+      where: {
+        technicianId: userId,
+        status: { not: 'fullfort' },
+        scheduledAt: {
+          gte: twoHoursBefore,
+          lt: twoHoursLater,
+        },
+      },
+    });
+
+    if (conflicting) {
+      return NextResponse.json({ error: 'Tidspunktet er allerede booket. Velg et annet tidspunkt.' }, { status: 409 });
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       // Create or find organization from the visit address
       let org = await tx.organization.findFirst({

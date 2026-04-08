@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { format, addDays } from 'date-fns';
 import { nb } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -36,28 +36,48 @@ export default function AvailableSlotPicker({
   const [slotsData, setSlotsData] = useState<Record<string, DaySlots>>({});
   const [loading, setLoading] = useState(true);
   const [activeDate, setActiveDate] = useState<string | null>(selectedDate || null);
+  const initialLoadDone = useRef(false);
 
-  useEffect(() => {
+  const fetchSlots = useCallback(async (isInitial = false) => {
     if (!userId) return;
-    setLoading(true);
+    if (isInitial) setLoading(true);
 
     const from = format(new Date(), 'yyyy-MM-dd');
     const to = format(addDays(new Date(), daysAhead), 'yyyy-MM-dd');
 
-    fetch(`/api/availability/slots?userId=${userId}&from=${from}&to=${to}&slotDuration=${slotDuration}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setSlotsData(data.slots || {});
-        // Auto-select first available date
+    try {
+      const res = await fetch(`/api/availability/slots?userId=${userId}&from=${from}&to=${to}&slotDuration=${slotDuration}`);
+      const data = await res.json();
+      setSlotsData(data.slots || {});
+      // Auto-select first available date on initial load
+      if (isInitial) {
         const dates = Object.keys(data.slots || {}).sort();
         const firstWithSlots = dates.find((d) => (data.slots[d]?.slots?.length || 0) > 0);
         if (firstWithSlots && !selectedDate) {
           setActiveDate(firstWithSlots);
         }
-      })
-      .catch(() => setSlotsData({}))
-      .finally(() => setLoading(false));
+      }
+    } catch {
+      if (isInitial) setSlotsData({});
+    } finally {
+      if (isInitial) setLoading(false);
+    }
   }, [userId, slotDuration, daysAhead, selectedDate]);
+
+  // Initial fetch
+  useEffect(() => {
+    initialLoadDone.current = false;
+    fetchSlots(true).then(() => { initialLoadDone.current = true; });
+  }, [fetchSlots]);
+
+  // Auto-refresh every 15 seconds to catch bookings from other users
+  useEffect(() => {
+    if (!userId) return;
+    const interval = setInterval(() => {
+      if (initialLoadDone.current) fetchSlots(false);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [userId, fetchSlots]);
 
   if (loading) {
     return (
