@@ -100,46 +100,59 @@ export default function TeknikerBesokPage() {
           }
         />
       ) : (
-        <div className="space-y-2">
-          {filtered.map((visit) => (
-            <Card
-              key={visit.id}
-              hover
-              padding="none"
-              onClick={() => router.push(`/tekniker/besok/${visit.id}`)}
-              className={`border-l-4 ${visit.status === 'bestilt' ? 'border-l-green-400' : 'border-l-blue-400'}`}
-            >
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="h-11 min-w-[52px] px-2 rounded-lg bg-gray-900 text-white flex items-center justify-center text-xs font-bold">
-                      {visit.unitNumber}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold">{visit.ownerName || visit.residentName || 'Ukjent'}</h3>
-                      {visit.ownerBirthDate && <p className="text-xs text-gray-500">{visit.ownerBirthDate}</p>}
-                    </div>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[visit.status] || 'bg-gray-100 text-gray-600'}`}>
-                    {statusLabels[visit.status] || visit.status}
-                  </span>
+        <div className="space-y-4">
+          {Object.entries(
+            filtered.reduce<Record<string, TechVisit[]>>((groups, visit) => {
+              const key = visit.address;
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(visit);
+              return groups;
+            }, {})
+          )
+            .sort(([a], [b]) => a.localeCompare(b, 'nb'))
+            .map(([address, groupVisits]) => (
+              <div key={address}>
+                <div className="flex items-center gap-2 mb-2">
+                  <MapPin className="h-4 w-4 text-gray-400" />
+                  <h2 className="text-sm font-semibold text-gray-700">{address}</h2>
+                  <span className="text-xs text-gray-400">({groupVisits.length})</span>
                 </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                    <MapPin className="h-3.5 w-3.5" />
-                    <span>{visit.address}{visit.postalCode ? `, ${visit.postalCode}` : ''}{visit.city ? ` ${visit.city}` : ''}</span>
-                  </div>
-                  {visit.ownerPhone && (
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                      <Phone className="h-3.5 w-3.5" />
-                      <span>{visit.ownerPhone}</span>
-                    </div>
-                  )}
+                <div className="space-y-2">
+                  {groupVisits.map((visit) => (
+                    <Card
+                      key={visit.id}
+                      hover
+                      padding="none"
+                      onClick={() => router.push(`/tekniker/besok/${visit.id}`)}
+                      className={`border-l-4 ${visit.status === 'bestilt' ? 'border-l-green-400' : 'border-l-blue-400'}`}
+                    >
+                      <div className="p-4">
+                        <div className="flex items-start justify-between mb-1">
+                          <div className="flex items-center gap-3">
+                            <div className="h-11 min-w-[52px] px-2 rounded-lg bg-gray-900 text-white flex items-center justify-center text-xs font-bold">
+                              {visit.unitNumber}
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-semibold">{visit.ownerName || visit.residentName || 'Ukjent'}</h3>
+                              {visit.ownerBirthDate && <p className="text-xs text-gray-500">{visit.ownerBirthDate}</p>}
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[visit.status] || 'bg-gray-100 text-gray-600'}`}>
+                            {statusLabels[visit.status] || visit.status}
+                          </span>
+                        </div>
+                        {visit.ownerPhone && (
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500 ml-[64px]">
+                            <Phone className="h-3.5 w-3.5" />
+                            <span>{visit.ownerPhone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
                 </div>
               </div>
-            </Card>
-          ))}
+            ))}
         </div>
       )}
 
