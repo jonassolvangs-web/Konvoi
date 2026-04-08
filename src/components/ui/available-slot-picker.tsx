@@ -6,6 +6,13 @@ import { nb } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import LoadingSpinner from './loading-spinner';
 
+// All 30-min slots from 07:00 to 18:30
+const TIME_SLOTS = Array.from({ length: 24 }, (_, i) => {
+  const hour = 7 + Math.floor(i / 2);
+  const min = i % 2 === 0 ? '00' : '30';
+  return `${String(hour).padStart(2, '0')}:${min}`;
+});
+
 interface SlotData {
   time: string;
   minutes: number;
@@ -14,6 +21,8 @@ interface SlotData {
 interface DaySlots {
   slots: SlotData[];
   windows: { start: string; end: string }[];
+  bookings: { time: string; minutes: number }[];
+  availableRanges: { start: string; end: string }[];
 }
 
 interface AvailableSlotPickerProps {
@@ -87,11 +96,13 @@ export default function AvailableSlotPicker({
     );
   }
 
-  const availableDates = Object.keys(slotsData)
-    .filter((d) => slotsData[d].slots.length > 0)
-    .sort();
+  // Show dates that have any availability ranges (not just free slots)
+  const allDates = Object.keys(slotsData).sort();
+  const datesWithAvailability = allDates.filter(
+    (d) => slotsData[d].availableRanges?.length > 0 || slotsData[d].slots.length > 0
+  );
 
-  if (availableDates.length === 0) {
+  if (datesWithAvailability.length === 0) {
     return (
       <div className="text-center py-6">
         <p className="text-sm text-gray-500">Ingen ledige tider funnet</p>
@@ -100,7 +111,32 @@ export default function AvailableSlotPicker({
     );
   }
 
-  const activeSlots = activeDate ? slotsData[activeDate]?.slots || [] : [];
+  const dayData = activeDate ? slotsData[activeDate] : null;
+  const availableSlotTimes = new Set(dayData?.slots.map((s) => s.time) || []);
+
+  // Determine slot state: 'available' | 'booked' | 'unavailable'
+  const getSlotState = (time: string): 'available' | 'booked' | 'unavailable' => {
+    if (!dayData) return 'unavailable';
+
+    // Check if booked (slot falls within a booking's 2h window)
+    const [th, tm] = time.split(':').map(Number);
+    const timeMin = th * 60 + tm;
+    const isBooked = dayData.bookings?.some((b) => {
+      return timeMin >= b.minutes && timeMin < b.minutes + 120;
+    });
+    if (isBooked) return 'booked';
+
+    // Check if available (in the free slots list)
+    if (availableSlotTimes.has(time)) return 'available';
+
+    // Check if within availability range but taken by booking
+    const inAvailableRange = dayData.availableRanges?.some((r) => {
+      return time >= r.start && time < r.end;
+    });
+    if (inAvailableRange) return 'booked'; // within range but not free = booked
+
+    return 'unavailable';
+  };
 
   return (
     <div className="space-y-4">
@@ -108,10 +144,10 @@ export default function AvailableSlotPicker({
       <div>
         <label className="label">Dato</label>
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          {availableDates.map((dateStr) => {
+          {datesWithAvailability.map((dateStr) => {
             const d = new Date(dateStr + 'T12:00:00');
             const isSelected = activeDate === dateStr;
-            const slotCount = slotsData[dateStr].slots.length;
+            const slotCount = slotsData[dateStr]?.slots.length || 0;
             return (
               <button
                 key={dateStr}
@@ -135,25 +171,52 @@ export default function AvailableSlotPicker({
         </div>
       </div>
 
-      {/* Time grid */}
-      {activeDate && activeSlots.length > 0 && (
+      {/* Time grid — all slots with color coding */}
+      {activeDate && (
         <div>
           <label className="label">Tid</label>
           <div className="grid grid-cols-4 gap-2">
-            {activeSlots.map((slot) => (
-              <button
-                key={slot.time}
-                onClick={() => onSelect(activeDate, slot.time)}
-                className={cn(
-                  'py-2 rounded-xl text-sm font-medium transition-colors',
-                  selectedDate === activeDate && selectedTime === slot.time
-                    ? 'bg-black text-white'
-                    : 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
-                )}
-              >
-                {slot.time}
-              </button>
-            ))}
+            {TIME_SLOTS.map((time) => {
+              const state = getSlotState(time);
+              const isUserSelected = selectedDate === activeDate && selectedTime === time;
+              return (
+                <button
+                  key={time}
+                  onClick={() => {
+                    if (state === 'available') onSelect(activeDate, time);
+                  }}
+                  disabled={state !== 'available'}
+                  className={cn(
+                    'py-2 rounded-xl text-sm font-medium transition-colors',
+                    isUserSelected
+                      ? 'bg-black text-white ring-2 ring-black ring-offset-1'
+                      : state === 'available'
+                        ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                        : state === 'booked'
+                          ? 'bg-gray-900 text-white cursor-not-allowed'
+                          : 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                  )}
+                >
+                  {time}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-green-100 border border-green-200" />
+              <span>Ledig</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-gray-900" />
+              <span>Oppdrag</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-gray-100 border border-gray-200" />
+              <span>Utilgjengelig</span>
+            </div>
           </div>
         </div>
       )}

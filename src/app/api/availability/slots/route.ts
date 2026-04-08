@@ -92,7 +92,12 @@ export async function GET(req: NextRequest) {
     }
 
     // 4. For each day in range: resolve availability and subtract bookings
-    const result: Record<string, { slots: { time: string; minutes: number }[]; windows: { start: string; end: string }[] }> = {};
+    const result: Record<string, {
+      slots: { time: string; minutes: number }[];
+      windows: { start: string; end: string }[];
+      bookings: { time: string; minutes: number }[];
+      availableRanges: { start: string; end: string }[];
+    }> = {};
 
     const current = new Date(fromDate);
     while (current <= toDate) {
@@ -141,15 +146,22 @@ export async function GET(req: NextRequest) {
       const freeWindows = subtractRanges(availableRanges, dayBookings);
       const slots = splitIntoSlots(freeWindows, slotDuration);
 
-      if (availableRanges.length > 0 || slots.length > 0) {
-        result[dateStr] = {
-          slots,
-          windows: freeWindows.map((w) => ({
-            start: `${String(Math.floor(w.start / 60)).padStart(2, '0')}:${String(w.start % 60).padStart(2, '0')}`,
-            end: `${String(Math.floor(w.end / 60)).padStart(2, '0')}:${String(w.end % 60).padStart(2, '0')}`,
-          })),
-        };
-      }
+      // Always include the day (even if no slots) so the component can show all time slots
+      result[dateStr] = {
+        slots,
+        windows: freeWindows.map((w) => ({
+          start: `${String(Math.floor(w.start / 60)).padStart(2, '0')}:${String(w.start % 60).padStart(2, '0')}`,
+          end: `${String(Math.floor(w.end / 60)).padStart(2, '0')}:${String(w.end % 60).padStart(2, '0')}`,
+        })),
+        bookings: dayBookings.map((b) => ({
+          time: `${String(Math.floor(b.start / 60)).padStart(2, '0')}:${String(b.start % 60).padStart(2, '0')}`,
+          minutes: b.start,
+        })),
+        availableRanges: availableRanges.map((r) => ({
+          start: `${String(Math.floor(r.start / 60)).padStart(2, '0')}:${String(r.start % 60).padStart(2, '0')}`,
+          end: `${String(Math.floor(r.end / 60)).padStart(2, '0')}:${String(r.end % 60).padStart(2, '0')}`,
+        })),
+      };
 
       current.setDate(current.getDate() + 1);
     }
