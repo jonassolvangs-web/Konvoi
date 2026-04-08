@@ -148,7 +148,7 @@ export default function AvailableSlotPicker({
                   'py-2 rounded-xl text-sm font-medium transition-colors',
                   selectedDate === activeDate && selectedTime === slot.time
                     ? 'bg-black text-white'
-                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    : 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
                 )}
               >
                 {slot.time}
