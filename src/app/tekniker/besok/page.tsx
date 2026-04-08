@@ -160,7 +160,7 @@ export default function TeknikerBesokPage() {
                                 <div>
                                   <h3 className="text-sm font-semibold">
                                 {visit.ownerName || 'Ukjent'}
-                                {visit.residentName && <span className="font-normal text-gray-500"> ({visit.residentName})</span>}
+                                {visit.residentName && <span className="font-normal text-gray-500"> (Beboer: {visit.residentName})</span>}
                               </h3>
                                   {visit.ownerBirthDate && <p className="text-xs text-gray-500">Født: {visit.ownerBirthDate}</p>}
                                 </div>

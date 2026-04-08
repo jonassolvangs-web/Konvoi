@@ -198,7 +198,7 @@ export default function BesokDetailPage() {
           <div>
             <h1 className="text-lg font-bold">
               {visit.ownerName || 'Ukjent'}
-              {visit.residentName && <span className="text-sm font-normal text-gray-500"> ({visit.residentName})</span>}
+              {visit.residentName && <span className="text-sm font-normal text-gray-500"> (Beboer: {visit.residentName})</span>}
             </h1>
             <p className="text-xs text-gray-500">{visit.address}</p>
           </div>
