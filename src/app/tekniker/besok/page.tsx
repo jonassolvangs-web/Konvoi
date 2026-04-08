@@ -159,7 +159,7 @@ export default function TeknikerBesokPage() {
                                 </div>
                                 <div>
                                   <h3 className="text-sm font-semibold">{visit.ownerName || visit.residentName || 'Ukjent'}</h3>
-                                  {visit.ownerBirthDate && <p className="text-xs text-gray-500">{visit.ownerBirthDate}</p>}
+                                  {visit.ownerBirthDate && <p className="text-xs text-gray-500">Født: {visit.ownerBirthDate}</p>}
                                 </div>
                               </div>
                               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[visit.status] || 'bg-gray-100 text-gray-600'}`}>
