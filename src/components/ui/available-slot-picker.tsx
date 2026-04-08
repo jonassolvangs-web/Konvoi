@@ -193,7 +193,7 @@ export default function AvailableSlotPicker({
                       : state === 'available'
                         ? 'bg-green-100 text-green-800 hover:bg-green-200'
                         : state === 'booked'
-                          ? 'bg-gray-900 text-white cursor-not-allowed'
+                          ? 'bg-red-100 text-red-700 cursor-not-allowed'
                           : 'bg-gray-50 text-gray-400 cursor-not-allowed'
                   )}
                 >
@@ -210,8 +210,8 @@ export default function AvailableSlotPicker({
               <span>Ledig</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-gray-900" />
-              <span>Oppdrag</span>
+              <div className="w-3 h-3 rounded bg-red-100 border border-red-200" />
+              <span>Booket</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded bg-gray-100 border border-gray-200" />
