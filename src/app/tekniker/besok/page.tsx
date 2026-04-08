@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Home, User, Phone, MapPin } from 'lucide-react';
+import { Plus, Phone, MapPin, ChevronDown } from 'lucide-react';
 import Tabs from '@/components/ui/tabs';
 import Card from '@/components/ui/card';
 import LoadingSpinner from '@/components/ui/loading-spinner';
@@ -44,6 +44,16 @@ export default function TeknikerBesokPage() {
   const [tab, setTab] = useState('aktive');
   const [visits, setVisits] = useState<TechVisit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (address: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(address)) next.delete(address);
+      else next.add(address);
+      return next;
+    });
+  };
 
   useEffect(() => {
     async function fetchVisits() {
@@ -110,49 +120,66 @@ export default function TeknikerBesokPage() {
             }, {})
           )
             .sort(([a], [b]) => a.localeCompare(b, 'nb'))
-            .map(([address, groupVisits]) => (
-              <div key={address}>
-                <div className="flex items-center gap-2 mb-2">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  <h2 className="text-sm font-semibold text-gray-700">{address}</h2>
-                  <span className="text-xs text-gray-400">({groupVisits.length})</span>
-                </div>
-                <div className="space-y-2">
-                  {groupVisits.map((visit) => (
-                    <Card
-                      key={visit.id}
-                      hover
-                      padding="none"
-                      onClick={() => router.push(`/tekniker/besok/${visit.id}`)}
-                      className={`border-l-4 ${visit.status === 'bestilt' ? 'border-l-green-400' : 'border-l-blue-400'}`}
-                    >
-                      <div className="p-4">
-                        <div className="flex items-start justify-between mb-1">
-                          <div className="flex items-center gap-3">
-                            <div className="h-11 min-w-[52px] px-2 rounded-lg bg-gray-900 text-white flex items-center justify-center text-xs font-bold">
-                              {visit.unitNumber}
+            .map(([address, groupVisits]) => {
+              const isExpanded = expandedGroups.has(address);
+              const bestiltCount = groupVisits.filter((v) => v.status === 'bestilt').length;
+              return (
+                <div key={address}>
+                  <button
+                    onClick={() => toggleGroup(address)}
+                    className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                      <h2 className="text-sm font-semibold text-gray-700">{address}</h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {bestiltCount > 0 && (
+                        <span className="text-xs text-green-600 font-medium">{bestiltCount} bestilt</span>
+                      )}
+                      <span className="text-xs text-gray-400">{groupVisits.length} stk</span>
+                      <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </div>
+                  </button>
+                  {isExpanded && (
+                    <div className="space-y-2 mt-2">
+                      {groupVisits.map((visit) => (
+                        <Card
+                          key={visit.id}
+                          hover
+                          padding="none"
+                          onClick={() => router.push(`/tekniker/besok/${visit.id}`)}
+                          className={`border-l-4 ${visit.status === 'bestilt' ? 'border-l-green-400' : 'border-l-blue-400'}`}
+                        >
+                          <div className="p-4">
+                            <div className="flex items-start justify-between mb-1">
+                              <div className="flex items-center gap-3">
+                                <div className="h-11 min-w-[52px] px-2 rounded-lg bg-gray-900 text-white flex items-center justify-center text-xs font-bold">
+                                  {visit.unitNumber}
+                                </div>
+                                <div>
+                                  <h3 className="text-sm font-semibold">{visit.ownerName || visit.residentName || 'Ukjent'}</h3>
+                                  {visit.ownerBirthDate && <p className="text-xs text-gray-500">{visit.ownerBirthDate}</p>}
+                                </div>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[visit.status] || 'bg-gray-100 text-gray-600'}`}>
+                                {statusLabels[visit.status] || visit.status}
+                              </span>
                             </div>
-                            <div>
-                              <h3 className="text-sm font-semibold">{visit.ownerName || visit.residentName || 'Ukjent'}</h3>
-                              {visit.ownerBirthDate && <p className="text-xs text-gray-500">{visit.ownerBirthDate}</p>}
-                            </div>
+                            {visit.ownerPhone && (
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500 ml-[64px]">
+                                <Phone className="h-3.5 w-3.5" />
+                                <span>{visit.ownerPhone}</span>
+                              </div>
+                            )}
                           </div>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[visit.status] || 'bg-gray-100 text-gray-600'}`}>
-                            {statusLabels[visit.status] || visit.status}
-                          </span>
-                        </div>
-                        {visit.ownerPhone && (
-                          <div className="flex items-center gap-1.5 text-xs text-gray-500 ml-[64px]">
-                            <Phone className="h-3.5 w-3.5" />
-                            <span>{visit.ownerPhone}</span>
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  ))}
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
         </div>
       )}
 
