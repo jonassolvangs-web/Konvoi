@@ -141,32 +141,18 @@ export default function BesokDetailPage() {
       <Card className="mb-4">
         <h2 className="text-sm font-semibold mb-3">Besøksinfo</h2>
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <Home className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-500">Leilighet:</span>
-            <span className="font-medium">{visit.unitNumber}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <MapPin className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-500">Adresse:</span>
-            <span className="font-medium">
-              {visit.address}
-              {visit.postalCode && `, ${visit.postalCode}`}
-              {visit.city && ` ${visit.city}`}
-            </span>
-          </div>
           {visit.ownerName && (
             <div className="flex items-center gap-2 text-sm">
               <User className="h-4 w-4 text-gray-400" />
               <span className="text-gray-500">Eier:</span>
-              <span className="font-medium">{visit.ownerName}</span>
+              <span className="font-semibold">{visit.ownerName}</span>
             </div>
           )}
           {visit.ownerBirthDate && (
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="h-4 w-4 text-gray-400" />
               <span className="text-gray-500">Født:</span>
-              <span className="font-semibold text-base">{visit.ownerBirthDate}</span>
+              <span className="font-medium">{visit.ownerBirthDate}</span>
             </div>
           )}
           {visit.ownerPhone && (
@@ -185,6 +171,20 @@ export default function BesokDetailPage() {
               <span className="font-medium">{visit.residentName}</span>
             </div>
           )}
+          <div className="flex items-center gap-2 text-sm">
+            <Home className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-500">Leilighet:</span>
+            <span className="font-medium">{visit.unitNumber}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <MapPin className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-500">Adresse:</span>
+            <span className="font-medium">
+              {visit.address}
+              {visit.postalCode && `, ${visit.postalCode}`}
+              {visit.city && ` ${visit.city}`}
+            </span>
+          </div>
           {visit.notes && (
             <div className="mt-2 p-3 bg-gray-50 rounded-xl text-sm text-gray-600">
               {visit.notes}
