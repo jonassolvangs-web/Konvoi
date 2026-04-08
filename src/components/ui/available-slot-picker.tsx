@@ -6,8 +6,8 @@ import { nb } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import LoadingSpinner from './loading-spinner';
 
-// Standard slots 07:00–19:30
-const STANDARD_SLOTS = Array.from({ length: 26 }, (_, i) => {
+// Standard slots 07:00–20:00
+const STANDARD_SLOTS = Array.from({ length: 27 }, (_, i) => {
   const hour = 7 + Math.floor(i / 2);
   const min = i % 2 === 0 ? '00' : '30';
   return `${String(hour).padStart(2, '0')}:${min}`;
