@@ -66,7 +66,7 @@ export default function TeknikerOppdragPage() {
 
   const fetchWorkOrders = async () => {
     try {
-      const res = await fetch('/api/work-orders?all=true');
+      const res = await fetch('/api/work-orders');
       const data = await res.json();
       setWorkOrders(data.workOrders || []);
     } catch {
@@ -96,17 +96,19 @@ export default function TeknikerOppdragPage() {
     }
   };
 
-  const todayOrders = workOrders.filter(
-    (wo) => wo.status !== 'fullfort' && isToday(new Date(wo.scheduledAt))
+  const activeOrders = workOrders.filter((wo) => wo.status !== 'fullfort');
+  const todayOrders = activeOrders.filter(
+    (wo) => isToday(new Date(wo.scheduledAt))
   );
-  const weekOrders = workOrders.filter(
-    (wo) => wo.status !== 'fullfort' && isThisWeek(new Date(wo.scheduledAt))
+  const weekOrders = activeOrders.filter(
+    (wo) => isThisWeek(new Date(wo.scheduledAt))
   );
   const completedOrders = workOrders.filter((wo) => wo.status === 'fullfort');
 
   const tabs = [
     { id: 'idag', label: 'I dag', count: todayOrders.length },
     { id: 'uke', label: 'Denne uken', count: weekOrders.length },
+    { id: 'alle', label: 'Alle', count: activeOrders.length },
     { id: 'fullfort', label: 'Fullført', count: completedOrders.length },
   ];
 
@@ -114,6 +116,7 @@ export default function TeknikerOppdragPage() {
     switch (tab) {
       case 'idag': return todayOrders;
       case 'uke': return weekOrders;
+      case 'alle': return activeOrders;
       case 'fullfort': return completedOrders;
       default: return todayOrders;
     }
@@ -173,7 +176,9 @@ export default function TeknikerOppdragPage() {
               ? 'Du har ingen oppdrag i dag'
               : tab === 'uke'
                 ? 'Du har ingen oppdrag denne uken'
-                : 'Ingen fullførte oppdrag ennå'
+                : tab === 'alle'
+                  ? 'Du har ingen aktive oppdrag'
+                  : 'Ingen fullførte oppdrag ennå'
           }
         />
       ) : (

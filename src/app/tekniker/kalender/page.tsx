@@ -89,7 +89,7 @@ export default function TeknikerKalenderPage() {
     if (!userId) return;
     try {
       const [woRes, availRes] = await Promise.all([
-        fetch('/api/work-orders?all=true'),
+        fetch('/api/work-orders'),
         fetch(`/api/availability?userId=${userId}`),
       ]);
 
