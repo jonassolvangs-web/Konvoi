@@ -123,18 +123,29 @@ export default function AvailableSlotPicker({
 
     const [th, tm] = time.split(':').map(Number);
     const timeMin = th * 60 + tm;
+
+    // 1. Explicitly booked by existing booking
     const isBooked = dayData.bookings?.some((b) => {
       return timeMin >= b.minutes && timeMin < b.minutes + 30;
     });
     if (isBooked) return 'booked';
 
+    // 2. Available slot (computed by API: free windows split into slots)
     if (availableSlotTimes.has(time)) return 'available';
 
+    // 3. Within a free window (after subtracting bookings) but not a standard slot
+    const inFreeWindow = dayData.windows?.some((w) => {
+      return time >= w.start && time < w.end;
+    });
+    if (inFreeWindow) return 'available';
+
+    // 4. Within available range but not free → occupied by booking
     const inAvailableRange = dayData.availableRanges?.some((r) => {
       return time >= r.start && time < r.end;
     });
     if (inAvailableRange) return 'booked';
 
+    // 5. Outside all ranges
     return 'unavailable';
   };
 
