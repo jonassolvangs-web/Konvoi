@@ -43,18 +43,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const { scheduledAt, orderType, product, price } = parsed.data;
 
-    // Double-booking check: ensure no existing work order at this time for this technician
+    // Double-booking check: ensure no existing work order at this exact slot (30 min)
     const scheduledDate = new Date(scheduledAt);
-    const twoHoursLater = new Date(scheduledDate.getTime() + 2 * 60 * 60 * 1000);
-    const twoHoursBefore = new Date(scheduledDate.getTime() - 2 * 60 * 60 * 1000);
+    const slotEnd = new Date(scheduledDate.getTime() + 30 * 60 * 1000);
 
     const conflicting = await prisma.workOrder.findFirst({
       where: {
         technicianId: userId,
         status: { not: 'fullfort' },
         scheduledAt: {
-          gte: twoHoursBefore,
-          lt: twoHoursLater,
+          gte: scheduledDate,
+          lt: slotEnd,
         },
       },
     });
