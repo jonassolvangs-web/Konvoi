@@ -235,7 +235,7 @@ export default function BesokDetailPage() {
           {visit.status === 'bestilt'
             ? 'Bestilt'
             : visit.notHomeCount > 0
-              ? `Ikke hjemme (${visit.notHomeCount})`
+              ? 'Ikke hjemme'
               : 'Ny'}
         </span>
       </div>

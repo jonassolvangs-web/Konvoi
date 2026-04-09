@@ -174,7 +174,7 @@ export default function TeknikerBesokPage() {
                                   : statusColors[visit.status] || 'bg-gray-100 text-gray-600'
                               }`}>
                                 {visit.notHomeCount > 0 && visit.status === 'ny'
-                                  ? `Ikke hjemme (${visit.notHomeCount})`
+                                  ? 'Ikke hjemme'
                                   : statusLabels[visit.status] || visit.status}
                               </span>
                             </div>
