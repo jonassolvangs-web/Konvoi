@@ -6,9 +6,29 @@ import {
   subtractRanges,
   splitIntoSlots,
   getISODayOfWeek,
-  toDateString,
   type TimeRange,
 } from '@/lib/availability';
+
+const TZ = 'Europe/Oslo';
+
+/** Get YYYY-MM-DD in Norwegian timezone */
+function toNorwayDateString(date: Date): string {
+  return date.toLocaleDateString('sv-SE', { timeZone: TZ });
+}
+
+/** Get hours and minutes in Norwegian timezone */
+function getNorwayMinutes(date: Date): number {
+  const h = parseInt(date.toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', hour12: false }));
+  const m = parseInt(date.toLocaleString('en-US', { timeZone: TZ, minute: 'numeric' }));
+  return h * 60 + m;
+}
+
+/** Get ISO day of week (1=Mon, 7=Sun) in Norwegian timezone */
+function getNorwayDayOfWeek(date: Date): number {
+  const dayStr = date.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'short' });
+  const map: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+  return map[dayStr] || getISODayOfWeek(date);
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -59,11 +79,11 @@ export async function GET(req: NextRequest) {
       });
       bookings = workOrders.map((wo) => {
         const d = new Date(wo.scheduledAt);
-        const startMin = d.getHours() * 60 + d.getMinutes();
+        const startMin = getNorwayMinutes(d);
         return {
-          date: toDateString(d),
+          date: toNorwayDateString(d),
           start: startMin,
-          end: startMin + 30, // block only the booked slot
+          end: startMin + 30,
         };
       });
     } else {
@@ -77,14 +97,13 @@ export async function GET(req: NextRequest) {
       });
       bookings = appointments.map((apt) => {
         const d = new Date(apt.scheduledAt);
-        const startMin = d.getHours() * 60 + d.getMinutes();
+        const startMin = getNorwayMinutes(d);
         let endMin = startMin + 60; // default 1h
         if (apt.endAt) {
-          const e = new Date(apt.endAt);
-          endMin = e.getHours() * 60 + e.getMinutes();
+          endMin = getNorwayMinutes(new Date(apt.endAt));
         }
         return {
-          date: toDateString(d),
+          date: toNorwayDateString(d),
           start: startMin,
           end: endMin,
         };
@@ -101,12 +120,12 @@ export async function GET(req: NextRequest) {
 
     const current = new Date(fromDate);
     while (current <= toDate) {
-      const dateStr = toDateString(current);
-      const dow = getISODayOfWeek(current);
+      const dateStr = toNorwayDateString(current);
+      const dow = getNorwayDayOfWeek(current);
 
       // Date-specific overrides take priority
       const dayOverrides = overrides.filter(
-        (o) => o.date && toDateString(new Date(o.date)) === dateStr
+        (o) => o.date && toNorwayDateString(new Date(o.date)) === dateStr
       );
 
       let availableRanges: TimeRange[];
