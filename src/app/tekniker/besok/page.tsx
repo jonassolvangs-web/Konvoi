@@ -32,11 +32,13 @@ interface TechVisit {
 
 const statusColors: Record<string, string> = {
   ny: 'bg-blue-100 text-blue-700',
+  ikke_hjemme: 'bg-amber-100 text-amber-700',
   bestilt: 'bg-green-100 text-green-700',
 };
 
 const statusLabels: Record<string, string> = {
   ny: 'Ny',
+  ikke_hjemme: 'Ikke hjemme',
   bestilt: 'Bestilt',
 };
 
@@ -166,8 +168,14 @@ export default function TeknikerBesokPage() {
                                   {visit.ownerBirthDate && <p className="text-xs text-gray-500">Født: {visit.ownerBirthDate}</p>}
                                 </div>
                               </div>
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[visit.status] || 'bg-gray-100 text-gray-600'}`}>
-                                {statusLabels[visit.status] || visit.status}
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                visit.notHomeCount > 0 && visit.status === 'ny'
+                                  ? statusColors['ikke_hjemme']
+                                  : statusColors[visit.status] || 'bg-gray-100 text-gray-600'
+                              }`}>
+                                {visit.notHomeCount > 0 && visit.status === 'ny'
+                                  ? `Ikke hjemme (${visit.notHomeCount})`
+                                  : statusLabels[visit.status] || visit.status}
                               </span>
                             </div>
                             <div className="flex items-center gap-3 ml-[64px]">

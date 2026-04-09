@@ -226,9 +226,17 @@ export default function BesokDetailPage() {
           </div>
         </div>
         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-          visit.status === 'bestilt' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+          visit.status === 'bestilt'
+            ? 'bg-green-100 text-green-700'
+            : visit.notHomeCount > 0
+              ? 'bg-amber-100 text-amber-700'
+              : 'bg-blue-100 text-blue-700'
         }`}>
-          {visit.status === 'bestilt' ? 'Bestilt' : 'Ny'}
+          {visit.status === 'bestilt'
+            ? 'Bestilt'
+            : visit.notHomeCount > 0
+              ? `Ikke hjemme (${visit.notHomeCount})`
+              : 'Ny'}
         </span>
       </div>
 
