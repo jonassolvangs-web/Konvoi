@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
   ArrowLeft, MapPin, Phone, User, Home, Calendar,
-  Trash2, ExternalLink, Mail, Edit3, DoorOpen, HelpCircle,
+  Trash2, ExternalLink, Mail, DoorOpen, HelpCircle,
 } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
@@ -53,8 +53,6 @@ export default function BesokDetailPage() {
   const [scheduledTime, setScheduledTime] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  // Edit state
-  const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState({
     unitNumber: '',
@@ -85,28 +83,43 @@ export default function BesokDetailPage() {
     fetchVisit();
   }, [id]);
 
-  const startEdit = () => {
-    if (!visit) return;
-    setEditForm({
-      unitNumber: visit.unitNumber,
-      address: visit.address,
-      postalCode: visit.postalCode || '',
-      city: visit.city || '',
-      ownerName: visit.ownerName || '',
-      ownerBirthDate: visit.ownerBirthDate || '',
-      ownerPhone: visit.ownerPhone || '',
-      ownerEmail: visit.ownerEmail || '',
-      residentName: visit.residentName || '',
-      notes: visit.notes || '',
-    });
-    setEditing(true);
-  };
+  // Sync editForm when visit loads/updates
+  useEffect(() => {
+    if (visit) {
+      setEditForm({
+        unitNumber: visit.unitNumber,
+        address: visit.address,
+        postalCode: visit.postalCode || '',
+        city: visit.city || '',
+        ownerName: visit.ownerName || '',
+        ownerBirthDate: visit.ownerBirthDate || '',
+        ownerPhone: visit.ownerPhone || '',
+        ownerEmail: visit.ownerEmail || '',
+        residentName: visit.residentName || '',
+        notes: visit.notes || '',
+      });
+    }
+  }, [visit]);
 
   const handleSave = async () => {
-    if (!editForm.unitNumber.trim() || !editForm.address.trim()) {
-      toast.error('Leilighet og adresse er påkrevd');
-      return;
-    }
+    if (!visit) return;
+    if (!editForm.unitNumber.trim() || !editForm.address.trim()) return;
+
+    // Check if anything changed
+    const hasChanged =
+      editForm.unitNumber !== visit.unitNumber ||
+      editForm.address !== visit.address ||
+      editForm.postalCode !== (visit.postalCode || '') ||
+      editForm.city !== (visit.city || '') ||
+      editForm.ownerName !== (visit.ownerName || '') ||
+      editForm.ownerBirthDate !== (visit.ownerBirthDate || '') ||
+      editForm.ownerPhone !== (visit.ownerPhone || '') ||
+      editForm.ownerEmail !== (visit.ownerEmail || '') ||
+      editForm.residentName !== (visit.residentName || '') ||
+      editForm.notes !== (visit.notes || '');
+
+    if (!hasChanged) return;
+
     setSaving(true);
     try {
       const res = await fetch(`/api/tech-visits/${id}`, {
@@ -126,8 +139,7 @@ export default function BesokDetailPage() {
         }),
       });
       if (!res.ok) throw new Error('Kunne ikke lagre');
-      toast.success('Besøk oppdatert');
-      setEditing(false);
+      toast.success('Lagret');
       await fetchVisit();
     } catch (err: any) {
       toast.error(err.message || 'Noe gikk galt');
@@ -264,135 +276,31 @@ export default function BesokDetailPage() {
         </span>
       </div>
 
-      {/* Visit info — view mode */}
-      {!editing && (
-        <Card className="mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold">Besøksinfo</h2>
-            <button onClick={startEdit} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
-              <Edit3 className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="space-y-2">
-            {visit.ownerName && (
-              <div className="flex items-center gap-2 text-sm">
-                <User className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-500">Eier:</span>
-                <span className="font-semibold">{visit.ownerName}</span>
-              </div>
-            )}
-            {visit.ownerBirthDate && (
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-500">Født:</span>
-                <span className="font-medium">{visit.ownerBirthDate}</span>
-              </div>
-            )}
-            {visit.ownerPhone && (
-              <div className="flex items-center gap-2 text-sm">
-                <Phone className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-500">Telefon:</span>
-                <a href={`tel:${visit.ownerPhone}`} className="font-medium text-blue-600">
-                  {visit.ownerPhone}
-                </a>
-              </div>
-            )}
-            {visit.ownerEmail && (
-              <div className="flex items-center gap-2 text-sm">
-                <Mail className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-500">E-post:</span>
-                <a href={`mailto:${visit.ownerEmail}`} className="font-medium text-blue-600">
-                  {visit.ownerEmail}
-                </a>
-              </div>
-            )}
-            {visit.residentName && (
-              <div className="flex items-center gap-2 text-sm">
-                <User className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-500">Beboer:</span>
-                <span className="font-medium">{visit.residentName}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2 text-sm">
-              <Home className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-500">Leilighet:</span>
-              <span className="font-medium">{visit.unitNumber}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <MapPin className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-500">Adresse:</span>
-              <span className="font-medium">
-                {visit.address}
-                {visit.postalCode && `, ${visit.postalCode}`}
-                {visit.city && ` ${visit.city}`}
-              </span>
-            </div>
-            <p className="text-xs text-gray-400 mt-2">Registrert {formatDate(visit.createdAt)}</p>
-          </div>
-        </Card>
-      )}
-
-      {/* Notes field — always visible */}
-      {!editing && (
-        <div className="mb-4">
-          <textarea
-            className="input-field min-h-[80px] w-full"
-            placeholder="Skriv et notat..."
-            defaultValue={visit.notes || ''}
-            onBlur={async (e) => {
-              const newNotes = e.target.value.trim() || null;
-              if (newNotes === (visit.notes || null)) return;
-              try {
-                await fetch(`/api/tech-visits/${id}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ notes: newNotes }),
-                });
-                toast.success('Notat lagret');
-                await fetchVisit();
-              } catch {
-                toast.error('Kunne ikke lagre notat');
-              }
-            }}
-          />
+      {/* Visit info — always editable */}
+      <Card className="mb-4 space-y-3">
+        <h2 className="text-sm font-semibold">Besøksinfo</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Leilighet" value={editForm.unitNumber} onChange={(e) => setEditForm({ ...editForm, unitNumber: e.target.value })} onBlur={() => handleSave()} />
+          <Input label="Født" value={editForm.ownerBirthDate} onChange={(e) => setEditForm({ ...editForm, ownerBirthDate: e.target.value })} onBlur={() => handleSave()} />
         </div>
-      )}
-
-      {/* Visit info — edit mode */}
-      {editing && (
-        <Card className="mb-4 space-y-4">
-          <h2 className="text-sm font-semibold">Rediger besøk</h2>
-
-          <Input label="Leilighet *" value={editForm.unitNumber} onChange={(e) => setEditForm({ ...editForm, unitNumber: e.target.value })} />
-          <Input label="Adresse *" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Postnr" value={editForm.postalCode} onChange={(e) => setEditForm({ ...editForm, postalCode: e.target.value })} />
-            <Input label="Sted" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
-          </div>
-          <Input label="Eier" value={editForm.ownerName} onChange={(e) => setEditForm({ ...editForm, ownerName: e.target.value })} />
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Født" value={editForm.ownerBirthDate} onChange={(e) => setEditForm({ ...editForm, ownerBirthDate: e.target.value })} />
-            <Input label="Telefon" type="tel" value={editForm.ownerPhone} onChange={(e) => setEditForm({ ...editForm, ownerPhone: e.target.value })} />
-          </div>
-          <Input label="E-post" type="email" value={editForm.ownerEmail} onChange={(e) => setEditForm({ ...editForm, ownerEmail: e.target.value })} />
-          <Input label="Beboer" value={editForm.residentName} onChange={(e) => setEditForm({ ...editForm, residentName: e.target.value })} />
-          <textarea
-            className="input-field min-h-[80px]"
-            placeholder="Notat..."
-            value={editForm.notes}
-            onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-          />
-
-          <div className="flex gap-2">
-            <Button fullWidth variant="secondary" onClick={() => setEditing(false)}>
-              Avbryt
-            </Button>
-            <Button fullWidth onClick={handleSave} isLoading={saving}>
-              Lagre
-            </Button>
-          </div>
-        </Card>
-      )}
+        <Input label="Eier" value={editForm.ownerName} onChange={(e) => setEditForm({ ...editForm, ownerName: e.target.value })} onBlur={() => handleSave()} />
+        <Input label="Beboer" value={editForm.residentName} onChange={(e) => setEditForm({ ...editForm, residentName: e.target.value })} onBlur={() => handleSave()} />
+        <Input label="Adresse" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} onBlur={() => handleSave()} />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Postnr" value={editForm.postalCode} onChange={(e) => setEditForm({ ...editForm, postalCode: e.target.value })} onBlur={() => handleSave()} />
+          <Input label="Sted" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} onBlur={() => handleSave()} />
+        </div>
+        <Input label="Telefon" type="tel" value={editForm.ownerPhone} onChange={(e) => setEditForm({ ...editForm, ownerPhone: e.target.value })} onBlur={() => handleSave()} />
+        <Input label="E-post" type="email" value={editForm.ownerEmail} onChange={(e) => setEditForm({ ...editForm, ownerEmail: e.target.value })} onBlur={() => handleSave()} />
+        <textarea
+          className="input-field min-h-[80px] w-full"
+          placeholder="Skriv et notat..."
+          value={editForm.notes}
+          onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+          onBlur={() => handleSave()}
+        />
+        <p className="text-xs text-gray-400">Registrert {formatDate(visit.createdAt)}</p>
+      </Card>
 
       {/* Not home indicator */}
       {visit.notHomeCount > 0 && (
