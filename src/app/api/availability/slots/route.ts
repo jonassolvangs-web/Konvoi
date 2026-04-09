@@ -10,24 +10,33 @@ import {
 } from '@/lib/availability';
 
 const TZ = 'Europe/Oslo';
+const dtf = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+
+/** Parse date into Norwegian timezone components */
+function getNorwayParts(date: Date) {
+  const parts = dtf.formatToParts(date);
+  const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || '0');
+  return { year: get('year'), month: get('month'), day: get('day'), hour: get('hour'), minute: get('minute') };
+}
 
 /** Get YYYY-MM-DD in Norwegian timezone */
 function toNorwayDateString(date: Date): string {
-  return date.toLocaleDateString('sv-SE', { timeZone: TZ });
+  const p = getNorwayParts(date);
+  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 }
 
-/** Get hours and minutes in Norwegian timezone */
+/** Get minutes from midnight in Norwegian timezone */
 function getNorwayMinutes(date: Date): number {
-  const h = parseInt(date.toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', hour12: false }));
-  const m = parseInt(date.toLocaleString('en-US', { timeZone: TZ, minute: 'numeric' }));
-  return h * 60 + m;
+  const p = getNorwayParts(date);
+  return p.hour * 60 + p.minute;
 }
 
 /** Get ISO day of week (1=Mon, 7=Sun) in Norwegian timezone */
 function getNorwayDayOfWeek(date: Date): number {
-  const dayStr = date.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'short' });
-  const map: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-  return map[dayStr] || getISODayOfWeek(date);
+  const p = getNorwayParts(date);
+  const d = new Date(p.year, p.month - 1, p.day);
+  const day = d.getDay();
+  return day === 0 ? 7 : day;
 }
 
 export async function GET(req: NextRequest) {
