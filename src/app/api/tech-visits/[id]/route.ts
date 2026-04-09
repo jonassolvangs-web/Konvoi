@@ -43,6 +43,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     const body = await req.json();
+
+    // Handle "not home" action
+    if (body.action === 'not_home') {
+      const visit = await prisma.techVisit.update({
+        where: { id },
+        data: {
+          notHomeCount: { increment: 1 },
+          lastNotHomeAt: new Date(),
+        },
+      });
+      return NextResponse.json({ visit });
+    }
+
     const { unitNumber, address, postalCode, city, ownerName, ownerBirthDate, ownerPhone, ownerEmail, residentName, notes } = body;
 
     const visit = await prisma.techVisit.update({

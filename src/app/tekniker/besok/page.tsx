@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Phone, MapPin, ChevronDown } from 'lucide-react';
+import { Plus, Phone, MapPin, ChevronDown, DoorOpen } from 'lucide-react';
 import Tabs from '@/components/ui/tabs';
 import Card from '@/components/ui/card';
 import LoadingSpinner from '@/components/ui/loading-spinner';
@@ -19,6 +19,7 @@ interface TechVisit {
   ownerBirthDate: string | null;
   residentName: string | null;
   ownerPhone: string | null;
+  notHomeCount: number;
   status: string;
   notes: string | null;
   createdAt: string;
@@ -169,12 +170,20 @@ export default function TeknikerBesokPage() {
                                 {statusLabels[visit.status] || visit.status}
                               </span>
                             </div>
-                            {visit.ownerPhone && (
-                              <div className="flex items-center gap-1.5 text-xs text-gray-500 ml-[64px]">
-                                <Phone className="h-3.5 w-3.5" />
-                                <span>{visit.ownerPhone}</span>
-                              </div>
-                            )}
+                            <div className="flex items-center gap-3 ml-[64px]">
+                              {visit.ownerPhone && (
+                                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                  <Phone className="h-3.5 w-3.5" />
+                                  <span>{visit.ownerPhone}</span>
+                                </div>
+                              )}
+                              {visit.notHomeCount > 0 && (
+                                <div className="flex items-center gap-1 text-xs text-amber-600">
+                                  <DoorOpen className="h-3.5 w-3.5" />
+                                  <span>{visit.notHomeCount}x ikke hjemme</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </Card>
                       ))}

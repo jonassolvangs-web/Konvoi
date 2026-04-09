@@ -374,6 +374,8 @@ model TechVisit {
   residentName    String?  @map("resident_name")
   notes           String?
   status          String   @default("ny") // ny | bestilt
+  notHomeCount    Int      @default(0) @map("not_home_count")
+  lastNotHomeAt   DateTime? @map("last_not_home_at")
   workOrderId     String?  @map("work_order_id")
   workOrder       WorkOrder? @relation(fields: [workOrderId], references: [id])
   createdAt       DateTime @default(now()) @map("created_at")

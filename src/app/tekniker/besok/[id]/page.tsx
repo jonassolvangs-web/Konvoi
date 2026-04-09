@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
   ArrowLeft, MapPin, Phone, User, Home, Calendar,
-  Trash2, ExternalLink, Mail, Edit3,
+  Trash2, ExternalLink, Mail, Edit3, DoorOpen,
 } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
@@ -29,6 +29,8 @@ interface TechVisit {
   residentName: string | null;
   notes: string | null;
   status: string;
+  notHomeCount: number;
+  lastNotHomeAt: string | null;
   createdAt: string;
   workOrder: {
     id: string;
@@ -131,6 +133,26 @@ export default function BesokDetailPage() {
       toast.error(err.message || 'Noe gikk galt');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const [markingNotHome, setMarkingNotHome] = useState(false);
+
+  const handleNotHome = async () => {
+    setMarkingNotHome(true);
+    try {
+      const res = await fetch(`/api/tech-visits/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'not_home' }),
+      });
+      if (!res.ok) throw new Error('Kunne ikke registrere');
+      toast.success('Registrert som ikke hjemme');
+      await fetchVisit();
+    } catch (err: any) {
+      toast.error(err.message || 'Noe gikk galt');
+    } finally {
+      setMarkingNotHome(false);
     }
   };
 
@@ -317,6 +339,30 @@ export default function BesokDetailPage() {
             </Button>
           </div>
         </Card>
+      )}
+
+      {/* Not home indicator */}
+      {visit.notHomeCount > 0 && (
+        <div className="mb-4 flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+          <DoorOpen className="h-4 w-4 text-amber-600" />
+          <span className="text-amber-700 font-medium">
+            Ikke hjemme {visit.notHomeCount} {visit.notHomeCount === 1 ? 'gang' : 'ganger'}
+          </span>
+        </div>
+      )}
+
+      {/* Not home button (only if status is ny) */}
+      {visit.status === 'ny' && (
+        <Button
+          fullWidth
+          variant="secondary"
+          onClick={handleNotHome}
+          isLoading={markingNotHome}
+          className="mb-4"
+        >
+          <DoorOpen className="h-4 w-4" />
+          Ikke hjemme
+        </Button>
       )}
 
       {/* Status: bestilt — show work order link */}
