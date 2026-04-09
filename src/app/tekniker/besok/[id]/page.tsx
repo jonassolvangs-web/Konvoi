@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
   ArrowLeft, MapPin, Phone, User, Home, Calendar,
-  Trash2, ExternalLink, Mail, Edit3, DoorOpen,
+  Trash2, ExternalLink, Mail, Edit3, DoorOpen, HelpCircle,
 } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
@@ -156,6 +156,26 @@ export default function BesokDetailPage() {
     }
   };
 
+  const [markingTenker, setMarkingTenker] = useState(false);
+
+  const handleTenker = async () => {
+    setMarkingTenker(true);
+    try {
+      const res = await fetch(`/api/tech-visits/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'tenker' }),
+      });
+      if (!res.ok) throw new Error('Kunne ikke registrere');
+      toast.success('Markert som tenker');
+      await fetchVisit();
+    } catch (err: any) {
+      toast.error(err.message || 'Noe gikk galt');
+    } finally {
+      setMarkingTenker(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!confirm('Er du sikker på at du vil slette dette besøket?')) return;
     setDeleting(true);
@@ -228,15 +248,19 @@ export default function BesokDetailPage() {
         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
           visit.status === 'bestilt'
             ? 'bg-green-100 text-green-700'
-            : visit.notHomeCount > 0
-              ? 'bg-amber-100 text-amber-700'
-              : 'bg-blue-100 text-blue-700'
+            : visit.status === 'tenker'
+              ? 'bg-purple-100 text-purple-700'
+              : visit.notHomeCount > 0
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-blue-100 text-blue-700'
         }`}>
           {visit.status === 'bestilt'
             ? 'Bestilt'
-            : visit.notHomeCount > 0
-              ? 'Ikke hjemme'
-              : 'Ny'}
+            : visit.status === 'tenker'
+              ? 'Tenker'
+              : visit.notHomeCount > 0
+                ? 'Ikke hjemme'
+                : 'Ny'}
         </span>
       </div>
 
@@ -303,14 +327,35 @@ export default function BesokDetailPage() {
                 {visit.city && ` ${visit.city}`}
               </span>
             </div>
-            {visit.notes && (
-              <div className="mt-2 p-3 bg-gray-50 rounded-xl text-sm text-gray-600">
-                {visit.notes}
-              </div>
-            )}
             <p className="text-xs text-gray-400 mt-2">Registrert {formatDate(visit.createdAt)}</p>
           </div>
         </Card>
+      )}
+
+      {/* Notes field — always visible */}
+      {!editing && (
+        <div className="mb-4">
+          <textarea
+            className="input-field min-h-[80px] w-full"
+            placeholder="Skriv et notat..."
+            defaultValue={visit.notes || ''}
+            onBlur={async (e) => {
+              const newNotes = e.target.value.trim() || null;
+              if (newNotes === (visit.notes || null)) return;
+              try {
+                await fetch(`/api/tech-visits/${id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ notes: newNotes }),
+                });
+                toast.success('Notat lagret');
+                await fetchVisit();
+              } catch {
+                toast.error('Kunne ikke lagre notat');
+              }
+            }}
+          />
+        </div>
       )}
 
       {/* Visit info — edit mode */}
@@ -359,18 +404,28 @@ export default function BesokDetailPage() {
         </div>
       )}
 
-      {/* Not home button (only if status is ny) */}
-      {visit.status === 'ny' && (
-        <Button
-          fullWidth
-          variant="secondary"
-          onClick={handleNotHome}
-          isLoading={markingNotHome}
-          className="mb-4"
-        >
-          <DoorOpen className="h-4 w-4" />
-          Ikke hjemme
-        </Button>
+      {/* Action buttons (only if status is ny or tenker) */}
+      {(visit.status === 'ny' || visit.status === 'tenker') && (
+        <div className="flex gap-2 mb-4">
+          <Button
+            fullWidth
+            variant="secondary"
+            onClick={handleNotHome}
+            isLoading={markingNotHome}
+          >
+            <DoorOpen className="h-4 w-4" />
+            Ikke hjemme
+          </Button>
+          <Button
+            fullWidth
+            variant="secondary"
+            onClick={handleTenker}
+            isLoading={markingTenker}
+          >
+            <HelpCircle className="h-4 w-4" />
+            Tenker
+          </Button>
+        </div>
       )}
 
       {/* Status: bestilt — show work order link */}

@@ -56,6 +56,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ visit });
     }
 
+    // Handle "tenker" action
+    if (body.action === 'tenker') {
+      const visit = await prisma.techVisit.update({
+        where: { id },
+        data: { status: 'tenker' },
+      });
+      return NextResponse.json({ visit });
+    }
+
     const { unitNumber, address, postalCode, city, ownerName, ownerBirthDate, ownerPhone, ownerEmail, residentName, notes } = body;
 
     const visit = await prisma.techVisit.update({

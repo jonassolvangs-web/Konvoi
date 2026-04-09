@@ -33,12 +33,14 @@ interface TechVisit {
 const statusColors: Record<string, string> = {
   ny: 'bg-blue-100 text-blue-700',
   ikke_hjemme: 'bg-amber-100 text-amber-700',
+  tenker: 'bg-purple-100 text-purple-700',
   bestilt: 'bg-green-100 text-green-700',
 };
 
 const statusLabels: Record<string, string> = {
   ny: 'Ny',
   ikke_hjemme: 'Ikke hjemme',
+  tenker: 'Tenker',
   bestilt: 'Bestilt',
 };
 
@@ -75,11 +77,13 @@ export default function TeknikerBesokPage() {
 
   const aktive = visits.filter((v) => v.status === 'ny' && v.notHomeCount === 0);
   const ikkeHjemme = visits.filter((v) => v.status === 'ny' && v.notHomeCount > 0);
+  const tenker = visits.filter((v) => v.status === 'tenker');
   const bestilt = visits.filter((v) => v.status === 'bestilt');
 
   const tabs = [
     { id: 'aktive', label: 'Aktive', count: aktive.length },
     { id: 'ikke_hjemme', label: 'Ikke hjemme', count: ikkeHjemme.length },
+    { id: 'tenker', label: 'Tenker', count: tenker.length },
     { id: 'bestilt', label: 'Bestilt', count: bestilt.length },
     { id: 'alle', label: 'Alle', count: visits.length },
   ];
@@ -88,6 +92,7 @@ export default function TeknikerBesokPage() {
     switch (tab) {
       case 'aktive': return aktive;
       case 'ikke_hjemme': return ikkeHjemme;
+      case 'tenker': return tenker;
       case 'bestilt': return bestilt;
       case 'alle': return visits;
       default: return aktive;
