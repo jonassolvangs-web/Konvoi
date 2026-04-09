@@ -287,7 +287,7 @@ export default function MotebookerKalenderPage() {
 
     setSaving(true);
     try {
-      const scheduledAt = `${formData.date}T${formData.time}:00`;
+      const scheduledAt = new Date(`${formData.date}T${formData.time}`).toISOString();
       const res = await fetch('/api/work-orders/quick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

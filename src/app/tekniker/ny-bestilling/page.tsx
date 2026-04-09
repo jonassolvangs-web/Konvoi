@@ -60,7 +60,7 @@ export default function NyBestillingPage() {
 
     setSaving(true);
     try {
-      const scheduledAt = `${date}T${time}:00`;
+      const scheduledAt = new Date(`${date}T${time}`).toISOString();
       const res = await fetch('/api/work-orders/quick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

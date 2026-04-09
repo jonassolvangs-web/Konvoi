@@ -183,7 +183,7 @@ export default function DialerView({ organizations, feltselgere, stats, onCallLo
     setBookingInProgress(true);
     try {
       const dateStr = format(bookSelectedDate, 'yyyy-MM-dd');
-      const scheduledAt = `${dateStr}T${bookSelectedTime}:00`;
+      const scheduledAt = new Date(`${dateStr}T${bookSelectedTime}`).toISOString();
       const aptRes = await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

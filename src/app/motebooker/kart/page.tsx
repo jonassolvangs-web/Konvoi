@@ -279,7 +279,7 @@ export default function KartPage() {
     setBookingInProgress(true);
     try {
       const dateStr = format(bookSelectedDate, 'yyyy-MM-dd');
-      const scheduledAt = `${dateStr}T${bookSelectedTime}:00`;
+      const scheduledAt = new Date(`${dateStr}T${bookSelectedTime}`).toISOString();
 
       const res = await fetch('/api/appointments', {
         method: 'POST',
@@ -465,7 +465,7 @@ export default function KartPage() {
     setWoCreating(true);
     try {
       const dateStr = format(woSelectedDate, 'yyyy-MM-dd');
-      const scheduledAt = `${dateStr}T${woSelectedTime}:00`;
+      const scheduledAt = new Date(`${dateStr}T${woSelectedTime}`).toISOString();
 
       const res = await fetch('/api/work-orders', {
         method: 'POST',

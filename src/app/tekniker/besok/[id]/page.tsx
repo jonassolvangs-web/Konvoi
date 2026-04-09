@@ -214,7 +214,7 @@ export default function BesokDetailPage() {
 
     setCreating(true);
     try {
-      const scheduledAt = `${scheduledDate}T${scheduledTime}:00`;
+      const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
       const res = await fetch(`/api/tech-visits/${id}/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

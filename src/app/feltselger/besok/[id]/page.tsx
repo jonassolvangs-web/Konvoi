@@ -258,7 +258,7 @@ export default function FeltselgerBesokDetailPage() {
     }
     setRegistering(true);
     try {
-      const scheduledAt = `${regScheduledDate}T${regScheduledTime}:00`;
+      const scheduledAt = new Date(`${regScheduledDate}T${regScheduledTime}`).toISOString();
 
       // 1. Update unit with contact info + scheduling, status → besok_booket
       const unitRes = await fetch(`/api/units/${registerUnitId}`, {
