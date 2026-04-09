@@ -358,8 +358,8 @@ export default function BesokDetailPage() {
         </Card>
       )}
 
-      {/* Status: ny — show create order form */}
-      {visit.status === 'ny' && (
+      {/* Create order form (if no work order yet) */}
+      {!visit.workOrder && (
         <Card className="mb-4">
           <h2 className="text-sm font-semibold mb-4">Opprett bestilling</h2>
 
