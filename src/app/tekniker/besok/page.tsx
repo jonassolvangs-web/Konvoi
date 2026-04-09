@@ -202,6 +202,9 @@ export default function TeknikerBesokPage() {
                                 </div>
                               )}
                             </div>
+                            {visit.notes && (
+                              <p className="text-xs text-gray-500 ml-[64px] mt-1 line-clamp-2">{visit.notes}</p>
+                            )}
                           </div>
                         </Card>
                       ))}
