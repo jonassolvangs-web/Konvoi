@@ -73,11 +73,13 @@ export default function TeknikerBesokPage() {
     fetchVisits();
   }, []);
 
-  const aktive = visits.filter((v) => v.status === 'ny');
+  const aktive = visits.filter((v) => v.status === 'ny' && v.notHomeCount === 0);
+  const ikkeHjemme = visits.filter((v) => v.status === 'ny' && v.notHomeCount > 0);
   const bestilt = visits.filter((v) => v.status === 'bestilt');
 
   const tabs = [
     { id: 'aktive', label: 'Aktive', count: aktive.length },
+    { id: 'ikke_hjemme', label: 'Ikke hjemme', count: ikkeHjemme.length },
     { id: 'bestilt', label: 'Bestilt', count: bestilt.length },
     { id: 'alle', label: 'Alle', count: visits.length },
   ];
@@ -85,6 +87,7 @@ export default function TeknikerBesokPage() {
   const getFilteredVisits = () => {
     switch (tab) {
       case 'aktive': return aktive;
+      case 'ikke_hjemme': return ikkeHjemme;
       case 'bestilt': return bestilt;
       case 'alle': return visits;
       default: return aktive;
@@ -107,9 +110,11 @@ export default function TeknikerBesokPage() {
           description={
             tab === 'aktive'
               ? 'Du har ingen aktive besøk. Trykk + for å registrere et nytt.'
-              : tab === 'bestilt'
-                ? 'Ingen besøk er bestilt ennå'
-                : 'Ingen besøk registrert'
+              : tab === 'ikke_hjemme'
+                ? 'Ingen besøk markert som ikke hjemme'
+                : tab === 'bestilt'
+                  ? 'Ingen besøk er bestilt ennå'
+                  : 'Ingen besøk registrert'
           }
         />
       ) : (
