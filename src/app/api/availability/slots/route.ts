@@ -140,17 +140,35 @@ export async function GET(req: NextRequest) {
       let availableRanges: TimeRange[];
 
       if (dayOverrides.length > 0) {
-        // Check if any override is a block (entire day blocked)
-        const hasBlock = dayOverrides.some((o) => o.isBlocked);
-        if (hasBlock) {
+        const blockedOverrides = dayOverrides.filter((o) => o.isBlocked);
+        const availableOverrides = dayOverrides.filter((o) => !o.isBlocked);
+
+        // Check if full-day block (00:00-23:59)
+        const isFullDayBlock = blockedOverrides.some(
+          (o) => o.startTime === '00:00' && o.endTime >= '23:59'
+        );
+
+        if (isFullDayBlock) {
           availableRanges = [];
+        } else if (availableOverrides.length > 0) {
+          // Use explicit available ranges, then subtract blocked ranges
+          availableRanges = availableOverrides.map((o) => ({
+            start: timeToMinutes(o.startTime),
+            end: timeToMinutes(o.endTime),
+          }));
+          const blockedRanges = blockedOverrides.map((o) => ({
+            start: timeToMinutes(o.startTime),
+            end: timeToMinutes(o.endTime),
+          }));
+          availableRanges = subtractRanges(availableRanges, blockedRanges);
         } else {
-          availableRanges = dayOverrides
-            .filter((o) => !o.isBlocked)
-            .map((o) => ({
-              start: timeToMinutes(o.startTime),
-              end: timeToMinutes(o.endTime),
-            }));
+          // Only blocked overrides — subtract them from default availability
+          const defaultRange = [{ start: 0, end: 1440 }];
+          const blockedRanges = blockedOverrides.map((o) => ({
+            start: timeToMinutes(o.startTime),
+            end: timeToMinutes(o.endTime),
+          }));
+          availableRanges = subtractRanges(defaultRange, blockedRanges);
         }
       } else {
         // Fall back to weekly templates
