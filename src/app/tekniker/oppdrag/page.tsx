@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Clock, Building2, Navigation, Trash2 } from 'lucide-react';
+import { MapPin, Clock, Building2, Navigation, Trash2, User } from 'lucide-react';
 import Tabs from '@/components/ui/tabs';
 import Card from '@/components/ui/card';
 import StatusBadge from '@/components/ui/status-badge';
@@ -28,7 +28,7 @@ interface WorkOrder {
   technician: { name: string };
   units: {
     id: string;
-    dwellingUnit: { unitNumber: string };
+    dwellingUnit: { unitNumber: string; residentName: string | null };
     product: { name: string } | null;
   }[];
 }
@@ -112,13 +112,16 @@ export default function TeknikerOppdragPage() {
     { id: 'fullfort', label: 'Fullført', count: completedOrders.length },
   ];
 
+  const sortByTime = (orders: WorkOrder[]) =>
+    [...orders].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+
   const getFilteredOrders = () => {
     switch (tab) {
-      case 'idag': return todayOrders;
-      case 'uke': return weekOrders;
-      case 'alle': return activeOrders;
-      case 'fullfort': return completedOrders;
-      default: return todayOrders;
+      case 'idag': return sortByTime(todayOrders);
+      case 'uke': return sortByTime(weekOrders);
+      case 'alle': return sortByTime(activeOrders);
+      case 'fullfort': return sortByTime(completedOrders);
+      default: return sortByTime(todayOrders);
     }
   };
 
@@ -219,18 +222,24 @@ export default function TeknikerOppdragPage() {
                     <MapPin className="h-3.5 w-3.5" />
                     <span>{wo.organization.address}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                    <Building2 className="h-3.5 w-3.5" />
-                    <span>{wo.units.length} enheter</span>
-                    {wo.organization.distanceFromOfficeKm != null && wo.organization.distanceFromOfficeMin != null && (
-                      <>
-                        <span className="text-gray-300 mx-1">|</span>
-                        <span>
-                          {formatDistance(wo.organization.distanceFromOfficeKm, wo.organization.distanceFromOfficeMin)}
-                        </span>
-                      </>
-                    )}
-                  </div>
+                  {wo.units.length > 0 && (
+                    <div className="flex items-start gap-1.5 text-xs text-gray-500">
+                      <Building2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                      <span>
+                        {wo.units.map((u) =>
+                          `${u.dwellingUnit.unitNumber}${u.dwellingUnit.residentName ? ` – ${u.dwellingUnit.residentName}` : ''}`
+                        ).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                  {wo.organization.distanceFromOfficeKm != null && wo.organization.distanceFromOfficeMin != null && (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <Navigation className="h-3.5 w-3.5" />
+                      <span>
+                        {formatDistance(wo.organization.distanceFromOfficeKm, wo.organization.distanceFromOfficeMin)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>
