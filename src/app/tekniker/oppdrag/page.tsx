@@ -31,6 +31,9 @@ interface WorkOrder {
     dwellingUnit: { unitNumber: string; residentName: string | null };
     product: { name: string } | null;
   }[];
+  techVisits: {
+    notes: string | null;
+  }[];
 }
 
 const statusBorderColors: Record<string, string> = {
@@ -241,6 +244,15 @@ export default function TeknikerOppdragPage() {
                     </div>
                   )}
                 </div>
+                {wo.techVisits?.some((tv) => tv.notes) && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    {wo.techVisits.filter((tv) => tv.notes).map((tv, i) => (
+                      <p key={i} className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-lg">
+                        {tv.notes}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
             </Card>
           ))}
