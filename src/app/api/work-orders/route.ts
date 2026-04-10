@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
       const orgInfo = await tx.organization.findUnique({ where: { id: organizationId }, select: { name: true } });
 
       const schedDate = new Date(scheduledAt);
-      const dateStr = schedDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' });
+      const dateStr = schedDate.toLocaleDateString('nb-NO', { timeZone: 'Europe/Oslo', day: 'numeric', month: 'long' });
 
       // System chat message
       const chatContent = `${userName} opprettet oppdrag – ${units.length} enheter. Tekniker ${tech?.name || 'ukjent'} booket til ${dateStr}`;

@@ -133,8 +133,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Send email notification (non-blocking)
     const techUser = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
     const schedDate = new Date(scheduledAt);
-    const dateStr = schedDate.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const timeStr = schedDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = schedDate.toLocaleDateString('nb-NO', { timeZone: 'Europe/Oslo', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const timeStr = schedDate.toLocaleTimeString('nb-NO', { timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit' });
 
     try {
       const { data: emailData, error: emailError } = await resend.emails.send({

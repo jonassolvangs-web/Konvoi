@@ -79,11 +79,13 @@ export async function GET(req: NextRequest) {
 
     for (const wo of tomorrowOrders) {
       const date = wo.scheduledAt.toLocaleDateString('nb-NO', {
+        timeZone: 'Europe/Oslo',
         weekday: 'long',
         day: 'numeric',
         month: 'long',
       });
       const time = wo.scheduledAt.toLocaleTimeString('nb-NO', {
+        timeZone: 'Europe/Oslo',
         hour: '2-digit',
         minute: '2-digit',
       });
@@ -121,6 +123,7 @@ export async function GET(req: NextRequest) {
 
     for (const wo of todayOrders) {
       const time = wo.scheduledAt.toLocaleTimeString('nb-NO', {
+        timeZone: 'Europe/Oslo',
         hour: '2-digit',
         minute: '2-digit',
       });

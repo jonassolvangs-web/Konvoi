@@ -73,8 +73,8 @@ export async function POST(req: NextRequest) {
       });
 
       // Format date and time for chat message
-      const dateStr = scheduledDate.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' });
-      const timeStr = scheduledDate.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = scheduledDate.toLocaleDateString('nb-NO', { timeZone: 'Europe/Oslo', day: 'numeric', month: 'long' });
+      const timeStr = scheduledDate.toLocaleTimeString('nb-NO', { timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit' });
 
       // Create system chat message with details
       await tx.chatMessage.create({
