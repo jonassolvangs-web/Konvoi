@@ -373,6 +373,7 @@ model TechVisit {
   ownerEmail      String?  @map("owner_email")
   residentName    String?  @map("resident_name")
   notes           String?
+  paymentMethod   String?  @map("payment_method") // faktura | vipps | bankterminal
   status          String   @default("ny") // ny | bestilt
   notHomeCount    Int      @default(0) @map("not_home_count")
   lastNotHomeAt   DateTime? @map("last_not_home_at")

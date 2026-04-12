@@ -65,7 +65,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ visit });
     }
 
-    const { unitNumber, address, postalCode, city, ownerName, ownerBirthDate, ownerPhone, ownerEmail, residentName, notes } = body;
+    const { unitNumber, address, postalCode, city, ownerName, ownerBirthDate, ownerPhone, ownerEmail, residentName, notes, paymentMethod } = body;
 
     const visit = await prisma.techVisit.update({
       where: { id },
@@ -80,6 +80,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(ownerEmail !== undefined && { ownerEmail }),
         ...(residentName !== undefined && { residentName }),
         ...(notes !== undefined && { notes }),
+        ...(paymentMethod !== undefined && { paymentMethod }),
       },
     });
 

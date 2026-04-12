@@ -142,6 +142,17 @@ export function generateReportHtml(data: ReportData, baseUrl: string): string {
 
       ${airHtml}
       ${photosHtml}
+
+      <!-- Betalingsløsning -->
+      ${unit.paymentMethod ? `
+      <div style="margin: 24px 0;">
+        <h3 style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: ${darkBlue}; margin: 0 0 12px;">Betalingsl&oslash;sning</h3>
+        <div style="padding: 10px 16px; background: ${lightGray}; border-radius: 6px;">
+          <span style="color: #666; font-size: 14px;">Valgt betalingsm&aring;te:</span>
+          <strong style="font-size: 14px; margin-left: 8px;">${unit.paymentMethod === 'faktura' ? 'Faktura' : unit.paymentMethod === 'vipps' ? 'Vipps' : unit.paymentMethod === 'bankterminal' ? 'Bankterminal' : unit.paymentMethod}</strong>
+        </div>
+      </div>
+      ` : ''}
     `;
   }).join('<hr style="border: none; border-top: 1px solid #e0e0e0; margin: 32px 0;" />');
 
