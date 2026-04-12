@@ -125,7 +125,7 @@ export function generateReportHtml(data: ReportData, baseUrl: string): string {
                 <tr><td style="color: #666; font-size: 14px; padding: 2px 0;">Dato:</td><td style="text-align: right; font-weight: 700; font-size: 14px;">${data.completedDate}</td></tr>
                 <tr><td style="color: #666; font-size: 14px; padding: 2px 0;">Deres ref:</td><td style="text-align: right; font-weight: 700; font-size: 14px;">${data.technicianName}</td></tr>
                 ${data.technicianPhone ? `<tr><td style="color: #666; font-size: 14px; padding: 2px 0;">Tlf:</td><td style="text-align: right; font-weight: 700; font-size: 14px;">${data.technicianPhone}</td></tr>` : ''}
-                ${data.technicianEmail ? `<tr><td style="color: #666; font-size: 14px; padding: 2px 0;">E-post:</td><td style="text-align: right; font-weight: 700; font-size: 14px;">${data.technicianEmail}</td></tr>` : ''}
+                ${data.technicianEmail ? `<tr><td colspan="2" style="font-size: 14px; padding: 2px 0;"><span style="color: #666;">E-post:</span> <strong>${data.technicianEmail}</strong></td></tr>` : ''}
               </table>
             </div>
           </td>
