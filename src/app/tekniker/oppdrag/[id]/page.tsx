@@ -799,44 +799,35 @@ export default function TeknikerOppdragDetailPage() {
                       <CreditCard className="h-3.5 w-3.5 inline mr-1" />
                       Betalingsløsning
                     </h4>
-                    {workOrder.status === 'fullfort' ? (
-                      <div className="bg-gray-50 rounded-xl p-3 text-sm">
-                        <span className="text-gray-500">Valgt:</span>{' '}
-                        <strong>
-                          {unit.paymentMethod === 'faktura' ? 'Faktura' : unit.paymentMethod === 'vipps' ? 'Vipps' : unit.paymentMethod === 'bankterminal' ? 'Bankterminal' : unit.paymentMethod || 'Ikke valgt'}
-                        </strong>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-2">
-                        <button
-                          onClick={() => handlePayment(unit.id, 'faktura')}
-                          className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                            unit.paymentMethod === 'faktura' ? 'bg-black text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                          }`}
-                        >
-                          <CreditCard className={`h-5 w-5 mx-auto mb-1 ${unit.paymentMethod === 'faktura' ? 'text-white' : 'text-gray-400'}`} />
-                          <span className="text-sm font-medium">Faktura</span>
-                        </button>
-                        <button
-                          onClick={() => handlePayment(unit.id, 'vipps')}
-                          className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                            unit.paymentMethod === 'vipps' ? 'bg-[#FF5B24] text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                          }`}
-                        >
-                          <span className={`text-lg font-bold block mb-0.5 ${unit.paymentMethod === 'vipps' ? 'text-white' : 'text-[#FF5B24]'}`}>V</span>
-                          <span className="text-sm font-medium">Vipps</span>
-                        </button>
-                        <button
-                          onClick={() => handlePayment(unit.id, 'bankterminal')}
-                          className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                            unit.paymentMethod === 'bankterminal' ? 'bg-black text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                          }`}
-                        >
-                          <CreditCard className={`h-5 w-5 mx-auto mb-1 ${unit.paymentMethod === 'bankterminal' ? 'text-white' : 'text-gray-400'}`} />
-                          <span className="text-sm font-medium">Terminal</span>
-                        </button>
-                      </div>
-                    )}
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => handlePayment(unit.id, 'faktura')}
+                        className={`py-3 px-2 rounded-xl text-center transition-colors ${
+                          unit.paymentMethod === 'faktura' ? 'bg-black text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <CreditCard className={`h-5 w-5 mx-auto mb-1 ${unit.paymentMethod === 'faktura' ? 'text-white' : 'text-gray-400'}`} />
+                        <span className="text-sm font-medium">Faktura</span>
+                      </button>
+                      <button
+                        onClick={() => handlePayment(unit.id, 'vipps')}
+                        className={`py-3 px-2 rounded-xl text-center transition-colors ${
+                          unit.paymentMethod === 'vipps' ? 'bg-[#FF5B24] text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span className={`text-lg font-bold block mb-0.5 ${unit.paymentMethod === 'vipps' ? 'text-white' : 'text-[#FF5B24]'}`}>V</span>
+                        <span className="text-sm font-medium">Vipps</span>
+                      </button>
+                      <button
+                        onClick={() => handlePayment(unit.id, 'bankterminal')}
+                        className={`py-3 px-2 rounded-xl text-center transition-colors ${
+                          unit.paymentMethod === 'bankterminal' ? 'bg-black text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <CreditCard className={`h-5 w-5 mx-auto mb-1 ${unit.paymentMethod === 'bankterminal' ? 'text-white' : 'text-gray-400'}`} />
+                        <span className="text-sm font-medium">Terminal</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* ── BILDER ── */}

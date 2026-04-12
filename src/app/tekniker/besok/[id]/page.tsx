@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
   ArrowLeft, MapPin, Phone, User, Home, Calendar,
-  Trash2, ExternalLink, Mail, DoorOpen, HelpCircle, CreditCard,
+  Trash2, ExternalLink, Mail, DoorOpen, HelpCircle,
 } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
@@ -28,7 +28,6 @@ interface TechVisit {
   ownerEmail: string | null;
   residentName: string | null;
   notes: string | null;
-  paymentMethod: string | null;
   status: string;
   notHomeCount: number;
   lastNotHomeAt: string | null;
@@ -355,75 +354,6 @@ export default function BesokDetailPage() {
               <ExternalLink className="h-3.5 w-3.5" />
               Se oppdrag
             </Button>
-          </div>
-        </Card>
-      )}
-
-      {/* Betalingsløsning */}
-      {(visit.status === 'ny' || visit.status === 'tenker' || visit.status === 'bestilt') && (
-        <Card className="mb-4">
-          <h2 className="text-sm font-semibold mb-3">
-            <CreditCard className="h-3.5 w-3.5 inline mr-1" />
-            Betalingsløsning
-          </h2>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={async () => {
-                try {
-                  await fetch(`/api/tech-visits/${id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ paymentMethod: 'faktura' }),
-                  });
-                  toast.success('Faktura valgt');
-                  fetchVisit();
-                } catch { toast.error('Kunne ikke lagre'); }
-              }}
-              className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                visit.paymentMethod === 'faktura' ? 'bg-black text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <CreditCard className={`h-5 w-5 mx-auto mb-1 ${visit.paymentMethod === 'faktura' ? 'text-white' : 'text-gray-400'}`} />
-              <span className="text-sm font-medium">Faktura</span>
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  await fetch(`/api/tech-visits/${id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ paymentMethod: 'vipps' }),
-                  });
-                  toast.success('Vipps valgt');
-                  fetchVisit();
-                } catch { toast.error('Kunne ikke lagre'); }
-              }}
-              className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                visit.paymentMethod === 'vipps' ? 'bg-[#FF5B24] text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <span className={`text-lg font-bold block mb-0.5 ${visit.paymentMethod === 'vipps' ? 'text-white' : 'text-[#FF5B24]'}`}>V</span>
-              <span className="text-sm font-medium">Vipps</span>
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  await fetch(`/api/tech-visits/${id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ paymentMethod: 'bankterminal' }),
-                  });
-                  toast.success('Bankterminal valgt');
-                  fetchVisit();
-                } catch { toast.error('Kunne ikke lagre'); }
-              }}
-              className={`py-3 px-2 rounded-xl text-center transition-colors ${
-                visit.paymentMethod === 'bankterminal' ? 'bg-black text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <CreditCard className={`h-5 w-5 mx-auto mb-1 ${visit.paymentMethod === 'bankterminal' ? 'text-white' : 'text-gray-400'}`} />
-              <span className="text-sm font-medium">Terminal</span>
-            </button>
           </div>
         </Card>
       )}
