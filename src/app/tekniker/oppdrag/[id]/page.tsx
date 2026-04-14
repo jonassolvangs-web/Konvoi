@@ -10,7 +10,6 @@ import {
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
 import Badge from '@/components/ui/badge';
-import StatusBadge from '@/components/ui/status-badge';
 import Modal from '@/components/ui/modal';
 import Input from '@/components/ui/input';
 import LoadingSpinner from '@/components/ui/loading-spinner';
@@ -596,7 +595,6 @@ export default function TeknikerOppdragDetailPage() {
           <h1 className="text-lg font-bold">{workOrder.organization.name}</h1>
           <p className="text-xs text-gray-500">{workOrder.organization.address}</p>
         </div>
-        <StatusBadge type="workOrder" status={workOrder.status} size="md" />
       </div>
 
       {/* Schedule info */}

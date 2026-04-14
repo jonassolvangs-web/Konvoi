@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { MapPin, Clock, Building2, Navigation, Trash2, Edit3 } from 'lucide-react';
 import Tabs from '@/components/ui/tabs';
 import Card from '@/components/ui/card';
-import StatusBadge from '@/components/ui/status-badge';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import EmptyState from '@/components/ui/empty-state';
 import Modal from '@/components/ui/modal';
@@ -233,7 +232,6 @@ export default function TeknikerOppdragPage() {
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-sm font-semibold">{wo.organization.name}</h3>
                   <div className="flex items-center gap-1.5">
-                    <StatusBadge type="workOrder" status={wo.status} />
                     {wo.status !== 'fullfort' && (
                       <button
                         onClick={(e) => {
