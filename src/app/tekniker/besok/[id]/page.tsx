@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
   ArrowLeft, MapPin, Phone, User, Home, Calendar,
-  Trash2, ExternalLink, Mail, DoorOpen, HelpCircle,
+  Trash2, ExternalLink, Mail, DoorOpen, HelpCircle, XCircle,
 } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
@@ -169,6 +169,7 @@ export default function BesokDetailPage() {
   };
 
   const [markingTenker, setMarkingTenker] = useState(false);
+  const [markingNei, setMarkingNei] = useState(false);
 
   const handleTenker = async () => {
     setMarkingTenker(true);
@@ -185,6 +186,24 @@ export default function BesokDetailPage() {
       toast.error(err.message || 'Noe gikk galt');
     } finally {
       setMarkingTenker(false);
+    }
+  };
+
+  const handleNei = async () => {
+    setMarkingNei(true);
+    try {
+      const res = await fetch(`/api/tech-visits/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'nei' }),
+      });
+      if (!res.ok) throw new Error('Kunne ikke registrere');
+      toast.success('Markert som nei');
+      await fetchVisit();
+    } catch (err: any) {
+      toast.error(err.message || 'Noe gikk galt');
+    } finally {
+      setMarkingNei(false);
     }
   };
 
@@ -260,19 +279,23 @@ export default function BesokDetailPage() {
         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
           visit.status === 'bestilt'
             ? 'bg-green-100 text-green-700'
-            : visit.status === 'tenker'
-              ? 'bg-purple-100 text-purple-700'
-              : visit.notHomeCount > 0
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-blue-100 text-blue-700'
+            : visit.status === 'nei'
+              ? 'bg-red-100 text-red-700'
+              : visit.status === 'tenker'
+                ? 'bg-purple-100 text-purple-700'
+                : visit.notHomeCount > 0
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-blue-100 text-blue-700'
         }`}>
           {visit.status === 'bestilt'
             ? 'Bestilt'
-            : visit.status === 'tenker'
-              ? 'Tenker'
-              : visit.notHomeCount > 0
-                ? 'Ikke hjemme'
-                : 'Ny'}
+            : visit.status === 'nei'
+              ? 'Nei'
+              : visit.status === 'tenker'
+                ? 'Tenker'
+                : visit.notHomeCount > 0
+                  ? 'Ikke hjemme'
+                  : 'Ny'}
         </span>
       </div>
 
@@ -312,8 +335,8 @@ export default function BesokDetailPage() {
         </div>
       )}
 
-      {/* Action buttons (only if status is ny or tenker) */}
-      {(visit.status === 'ny' || visit.status === 'tenker') && (
+      {/* Action buttons (only if status is ny, tenker or nei) */}
+      {(visit.status === 'ny' || visit.status === 'tenker' || visit.status === 'nei') && (
         <div className="flex gap-2 mb-4">
           <Button
             fullWidth
@@ -332,6 +355,15 @@ export default function BesokDetailPage() {
           >
             <HelpCircle className="h-4 w-4" />
             Tenker
+          </Button>
+          <Button
+            fullWidth
+            variant="danger"
+            onClick={handleNei}
+            isLoading={markingNei}
+          >
+            <XCircle className="h-4 w-4" />
+            Nei
           </Button>
         </div>
       )}

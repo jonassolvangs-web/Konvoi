@@ -65,6 +65,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ visit });
     }
 
+    // Handle "nei" action
+    if (body.action === 'nei') {
+      const visit = await prisma.techVisit.update({
+        where: { id },
+        data: { status: 'nei' },
+      });
+      return NextResponse.json({ visit });
+    }
+
     const { unitNumber, address, postalCode, city, ownerName, ownerBirthDate, ownerPhone, ownerEmail, residentName, notes, paymentMethod } = body;
 
     const visit = await prisma.techVisit.update({
