@@ -410,20 +410,22 @@ export default function TeknikerOppdragDetailPage() {
     const bodyStyles = htmlContent.match(/<body([^>]*)>/i);
     const innerHtml = bodyMatch ? bodyMatch[1] : htmlContent;
 
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'fixed';
+    wrapper.style.top = '0';
+    wrapper.style.left = '-9999px';
+    wrapper.style.width = '700px';
+    wrapper.style.overflow = 'hidden';
+    wrapper.style.pointerEvents = 'none';
+
     const container = document.createElement('div');
     // Apply body styles to container
     const styleMatch = bodyStyles?.[1]?.match(/style="([^"]*)"/);
     if (styleMatch) container.setAttribute('style', styleMatch[1]);
-    // Position in viewport but invisible - html2canvas needs elements in the layout flow
-    container.style.position = 'fixed';
-    container.style.top = '0';
-    container.style.left = '0';
     container.style.width = '700px';
-    container.style.zIndex = '-9999';
-    container.style.opacity = '0';
-    container.style.pointerEvents = 'none';
     container.innerHTML = innerHtml;
-    document.body.appendChild(container);
+    wrapper.appendChild(container);
+    document.body.appendChild(wrapper);
 
     // Wait for images to load and browser to paint
     await new Promise<void>((resolve) => {
@@ -447,7 +449,7 @@ export default function TeknikerOppdragDetailPage() {
           margin: [10, 10, 10, 10],
           filename: 'rapport.pdf',
           image: { type: 'jpeg', quality: 0.95 },
-          html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 700 },
+          html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false, windowWidth: 700 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         })
         .from(container)
@@ -455,7 +457,7 @@ export default function TeknikerOppdragDetailPage() {
 
       return dataUri.split(',')[1];
     } finally {
-      document.body.removeChild(container);
+      document.body.removeChild(wrapper);
     }
   };
 
@@ -537,27 +539,43 @@ export default function TeknikerOppdragDetailPage() {
       }
 
       // Send to both internal email and customer email (if available)
-      const recipients = ['hei@godtvedlikehold.no'];
       const custEmail = (customerEmail[unit.id] ?? unit.dwellingUnit.residentEmail ?? '').trim();
-      if (custEmail) recipients.push(custEmail);
 
-      console.log('Sending report email to:', recipients);
-      console.log('PDF base64 length:', pdfBase64.length);
-      const emailRes = await fetch('/api/email', {
+      // Format payment method
+      const paymentLabel = unit.paymentMethod === 'faktura' ? 'Faktura' : unit.paymentMethod === 'vipps' ? 'Vipps' : unit.paymentMethod === 'bankterminal' ? 'Bankterminal' : unit.paymentMethod || 'Ikke valgt';
+
+      // Send to hei@ with payment info
+      console.log('Sending report emails...');
+      const internalEmailRes = await fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: recipients,
+          to: 'hei@godtvedlikehold.no',
           subject: `Rapport Ventilasjonsrens - ${name} - ${address}`,
-          html: greetingHtml,
+          html: greetingHtml.replace('</body>', `<hr style="border:none;border-top:1px solid #ddd;margin:20px 0;"><p style="font-size:14px;color:#333;"><strong>Betalingsløsning:</strong> ${paymentLabel}</p></body>`),
           pdfBase64,
         }),
       });
-      console.log('Email API response status:', emailRes.status);
-      const emailResult = await emailRes.json();
-      console.log('Email API result:', JSON.stringify(emailResult));
-      if (emailResult.error) throw new Error(emailResult.error);
-      if (!emailRes.ok) throw new Error('E-post sending feilet: ' + emailRes.status);
+      const internalResult = await internalEmailRes.json();
+      console.log('Internal email result:', JSON.stringify(internalResult));
+
+      // Send to customer (without payment info)
+      if (custEmail) {
+        const customerEmailRes = await fetch('/api/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: custEmail,
+            subject: `Rapport Ventilasjonsrens - ${name} - ${address}`,
+            html: greetingHtml,
+            pdfBase64,
+          }),
+        });
+        const customerResult = await customerEmailRes.json();
+        console.log('Customer email result:', JSON.stringify(customerResult));
+      }
+
+      if (internalResult.error) throw new Error(internalResult.error);
 
       // Mark report as sent on unit
       await fetch(`/api/work-orders/${id}`, {
