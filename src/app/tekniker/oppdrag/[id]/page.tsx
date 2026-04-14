@@ -541,6 +541,8 @@ export default function TeknikerOppdragDetailPage() {
       const custEmail = (customerEmail[unit.id] ?? unit.dwellingUnit.residentEmail ?? '').trim();
       if (custEmail) recipients.push(custEmail);
 
+      console.log('Sending report email to:', recipients);
+      console.log('PDF base64 length:', pdfBase64.length);
       const emailRes = await fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -551,8 +553,11 @@ export default function TeknikerOppdragDetailPage() {
           pdfBase64,
         }),
       });
+      console.log('Email API response status:', emailRes.status);
       const emailResult = await emailRes.json();
+      console.log('Email API result:', JSON.stringify(emailResult));
       if (emailResult.error) throw new Error(emailResult.error);
+      if (!emailRes.ok) throw new Error('E-post sending feilet: ' + emailRes.status);
 
       // Mark report as sent on unit
       await fetch(`/api/work-orders/${id}`, {
@@ -572,9 +577,9 @@ export default function TeknikerOppdragDetailPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'fullfort' }),
         });
-        toast.success('Rapport sendt og oppdrag fullført!');
+        toast.success(`Rapport sendt til ${recipients.join(' og ')} - oppdrag fullført!`);
       } else {
-        toast.success('Rapport sendt!');
+        toast.success(`Rapport sendt til ${recipients.join(' og ')}`);
       }
       fetchWorkOrder();
     } catch (err: any) {
