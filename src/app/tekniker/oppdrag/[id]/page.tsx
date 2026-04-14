@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Clock, CheckCircle,
-  CreditCard, Trash2, Camera, Send,
-  Image as ImageIcon, XCircle, Edit3, Calendar,
+  CreditCard, Camera, Send,
+  Image as ImageIcon, Edit3,
 } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
@@ -15,6 +15,7 @@ import Modal from '@/components/ui/modal';
 import Input from '@/components/ui/input';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import EmptyState from '@/components/ui/empty-state';
+import AvailableSlotPicker from '@/components/ui/available-slot-picker';
 import { formatDate, formatTime, formatCurrency, cn } from '@/lib/utils';
 import { defaultChecklist, productsByOrderType, paymentPlanOptions } from '@/lib/constants';
 import toast from 'react-hot-toast';
@@ -82,6 +83,7 @@ interface TechVisitInfo {
 
 interface WorkOrder {
   id: string;
+  technicianId: string;
   scheduledAt: string;
   status: string;
   completedAt: string | null;
@@ -105,8 +107,6 @@ export default function TeknikerOppdragDetailPage() {
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeUnit, setActiveUnit] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   // Air measurement state
   const [airBefore, setAirBefore] = useState('');
@@ -170,19 +170,6 @@ export default function TeknikerOppdragDetailPage() {
     }
   }, [workOrder, id, fetchWorkOrder]);
 
-  const handleDeleteOrder = async () => {
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/work-orders/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error();
-      toast.success('Oppdrag slettet');
-      router.push('/tekniker/oppdrag');
-    } catch {
-      toast.error('Kunne ikke slette oppdrag');
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   const handleToggleChecklist = async (unitId: string, checklist: ChecklistItem[], itemId: number) => {
     const updated = checklist.map((item) =>
@@ -383,6 +370,8 @@ export default function TeknikerOppdragDetailPage() {
       });
       toast.success('Dato oppdatert');
       setEditingDate(false);
+      setNewDate('');
+      setNewTime('');
       fetchWorkOrder();
     } catch {
       toast.error('Kunne ikke oppdatere dato');
@@ -608,53 +597,45 @@ export default function TeknikerOppdragDetailPage() {
 
       {/* Schedule info */}
       <Card className="mb-4">
-        {editingDate ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-wide">
-              <Calendar className="h-3.5 w-3.5" />
-              Endre dato og tid
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="date"
-                value={newDate}
-                onChange={(e) => setNewDate(e.target.value)}
-                className="input-field text-sm"
-              />
-              <input
-                type="time"
-                value={newTime}
-                onChange={(e) => setNewTime(e.target.value)}
-                className="input-field text-sm"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" fullWidth onClick={handleSaveDate} isLoading={savingDate}>
-                Lagre
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setEditingDate(false)}>
-                Avbryt
-              </Button>
-            </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-sm text-gray-600">
+            <Clock className="h-4 w-4" />
+            <span>{formatDate(workOrder.scheduledAt)} kl. {formatTime(workOrder.scheduledAt)}</span>
           </div>
-        ) : (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-sm text-gray-600">
-              <Clock className="h-4 w-4" />
-              <span>{formatDate(workOrder.scheduledAt)} kl. {formatTime(workOrder.scheduledAt)}</span>
-            </div>
-            {workOrder.status !== 'fullfort' && (
-              <button
-                onClick={() => {
-                  const d = new Date(workOrder.scheduledAt);
-                  setNewDate(d.toISOString().split('T')[0]);
-                  setNewTime(d.toTimeString().slice(0, 5));
-                  setEditingDate(true);
-                }}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-              >
-                <Edit3 className="h-4 w-4" />
-              </button>
+          {workOrder.status !== 'fullfort' && (
+            <button
+              onClick={() => {
+                const d = new Date(workOrder.scheduledAt);
+                setNewDate(d.toISOString().split('T')[0]);
+                setNewTime(d.toTimeString().slice(0, 5));
+                setEditingDate(!editingDate);
+              }}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+            >
+              <Edit3 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {editingDate && (
+          <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
+            <AvailableSlotPicker
+              userId={workOrder.technicianId}
+              onSelect={(date, time) => {
+                setNewDate(date);
+                setNewTime(time);
+              }}
+              selectedDate={newDate || null}
+              selectedTime={newTime || null}
+            />
+            {newDate && newTime && (
+              <div className="flex gap-2">
+                <Button size="sm" fullWidth onClick={handleSaveDate} isLoading={savingDate}>
+                  Lagre ny tid
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setEditingDate(false); setNewDate(''); setNewTime(''); }}>
+                  Avbryt
+                </Button>
+              </div>
             )}
           </div>
         )}
@@ -715,16 +696,6 @@ export default function TeknikerOppdragDetailPage() {
             </div>
           ))}
         </Card>
-      )}
-
-      {/* Action buttons */}
-      {workOrder.status !== 'fullfort' && (
-        <div className="flex gap-2 mb-4">
-          <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-            <XCircle className="h-4 w-4" />
-            Avbryt oppdrag
-          </Button>
-        </div>
       )}
 
       {/* Units */}
@@ -1109,25 +1080,6 @@ export default function TeknikerOppdragDetailPage() {
       </Modal>
 
 
-      {/* Delete/cancel confirmation modal */}
-      <Modal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} title={workOrder.status === 'pagaar' ? 'Avbryt oppdrag?' : 'Slett oppdrag?'}>
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            {workOrder.status === 'pagaar'
-              ? <>Er du sikker på at du vil avbryte oppdraget for <span className="font-semibold">{workOrder.organization.name}</span>? Alt arbeid som ikke er lagret vil gå tapt.</>
-              : <>Er du sikker på at du vil slette oppdraget for <span className="font-semibold">{workOrder.organization.name}</span>?</>
-            }
-          </p>
-          <div className="flex gap-3">
-            <Button fullWidth variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
-              Nei, behold
-            </Button>
-            <Button fullWidth variant="danger" onClick={handleDeleteOrder} isLoading={deleting}>
-              {workOrder.status === 'pagaar' ? 'Avbryt oppdrag' : 'Slett oppdrag'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }
