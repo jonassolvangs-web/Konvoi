@@ -53,7 +53,7 @@ async function main() {
   await page.waitForLoadState('networkidle');
   await screenshot(page, 'login-side');
 
-  await page.fill('input[type="email"]', 'lars@konvoi.no');
+  await page.fill('input[type="email"]', 'lars@turbo.no');
   await page.fill('input[type="password"]', 'password123');
   await screenshot(page, 'login-utfylt');
 

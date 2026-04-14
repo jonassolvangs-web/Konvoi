@@ -283,7 +283,7 @@ export default function FeltselgerBesokDetailPage() {
       const name = regResidentName.trim().split(' ')[0];
       const d = new Date(regScheduledDate + 'T12:00:00');
       const dateStr = d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' });
-      const smsMessage = `Hei ${name}! Du har fått en avtale for ventilasjonsrens ${dateStr} kl ${regScheduledTime}. Bekreft med å svare JA. Mvh Konvoi`;
+      const smsMessage = `Hei ${name}! Du har fått en avtale for ventilasjonsrens ${dateStr} kl ${regScheduledTime}. Bekreft med å svare JA. Mvh Turbo`;
 
       await fetch('/api/sms', {
         method: 'POST',

@@ -55,7 +55,7 @@ async function main() {
   // SCENE 2: MØTEBOOKER (Mari)
   // ════════════════════════════════════════
   console.log('\n═══ SCENE 2: MØTEBOOKER ═══');
-  await login(page, 'mari@konvoi.no');
+  await login(page, 'mari@turbo.no');
 
   // Kart view
   await page.goto(`${BASE_URL}/motebooker/kart`);
@@ -141,7 +141,7 @@ async function main() {
   // SCENE 3: FELTSELGER (Erik)
   // ════════════════════════════════════════
   console.log('\n═══ SCENE 3: FELTSELGER ═══');
-  await login(page, 'erik@konvoi.no');
+  await login(page, 'erik@turbo.no');
 
   // Besøk list
   await page.goto(`${BASE_URL}/feltselger/besok`);
@@ -228,7 +228,7 @@ async function main() {
   // SCENE 4: TEKNIKER (Lars)
   // ════════════════════════════════════════
   console.log('\n═══ SCENE 4: TEKNIKER ═══');
-  await login(page, 'lars@konvoi.no');
+  await login(page, 'lars@turbo.no');
 
   // Oppdragsliste
   await page.goto(`${BASE_URL}/tekniker/oppdrag`);
@@ -418,7 +418,7 @@ async function main() {
   const filelist = files.map(f => `file '${f}'\nduration 2`).join('\n') + `\nfile '${files[files.length - 1]}'`;
   fs.writeFileSync(path.join(SCREENSHOT_DIR, 'filelist.txt'), filelist);
 
-  const outPath = path.join(__dirname, '..', 'demo-konvoi-full.mp4');
+  const outPath = path.join(__dirname, '..', 'demo-turbo-full.mp4');
   execSync(
     `${ffmpegPath} -y -f concat -safe 0 -i "${SCREENSHOT_DIR}/filelist.txt" -vf "scale=780:1688:flags=lanczos,format=yuv420p" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -r 30 -movflags +faststart "${outPath}"`,
     { stdio: 'inherit' }

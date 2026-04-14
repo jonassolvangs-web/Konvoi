@@ -58,7 +58,7 @@ async function geocodeNominatim(query: string): Promise<AddressResult | null> {
     });
 
     const res = await fetch(`${NOMINATIM_API}?${params}`, {
-      headers: { 'User-Agent': 'Konvoi-CRM/1.0' },
+      headers: { 'User-Agent': 'Turbo-CRM/1.0' },
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return null;

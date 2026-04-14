@@ -8,13 +8,13 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Konvoi',
+  title: 'Turbo',
   description: 'Felt-operasjonssystem for ventilasjonsrens',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Konvoi',
+    title: 'Turbo',
   },
 };
 
@@ -30,7 +30,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#000000" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Konvoi" />
+        <meta name="apple-mobile-web-app-title" content="Turbo" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <link rel="manifest" href="/manifest.json" />
       </head>

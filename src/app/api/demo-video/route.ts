@@ -4,14 +4,14 @@ import path from 'path';
 
 export async function GET(_req: NextRequest) {
   try {
-    const videoPath = path.join(process.cwd(), 'demo-konvoi-full.mp4');
+    const videoPath = path.join(process.cwd(), 'demo-turbo-full.mp4');
     const buffer = await readFile(videoPath);
 
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': 'video/mp4',
         'Content-Length': buffer.length.toString(),
-        'Content-Disposition': 'inline; filename="konvoi-demo.mp4"',
+        'Content-Disposition': 'inline; filename="turbo-demo.mp4"',
       },
     });
   } catch {

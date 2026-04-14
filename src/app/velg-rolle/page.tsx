@@ -69,9 +69,9 @@ export default function VelgRollePage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="h-14 w-14 rounded-2xl bg-black flex items-center justify-center mx-auto mb-4">
-            <span className="text-white text-xl font-bold">K</span>
+            <span className="text-white text-xl font-bold">T</span>
           </div>
-          <h1 className="text-xl font-bold">KONVOI</h1>
+          <h1 className="text-xl font-bold">TURBO</h1>
           <p className="text-sm text-gray-500 mt-2">Velg din rolle</p>
         </div>
 

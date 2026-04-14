@@ -328,7 +328,7 @@ export default function KartPage() {
   const openSmsModal = async () => {
     if (selectedOrg) {
       setSmsText(
-        `Hei, dette er fra Konvoi. Vi kontakter deg angående ventilasjonsrens for ${selectedOrg.name}. Vennligst ta kontakt for å avtale tidspunkt.`
+        `Hei, dette er fra Turbo. Vi kontakter deg angående ventilasjonsrens for ${selectedOrg.name}. Vennligst ta kontakt for å avtale tidspunkt.`
       );
     }
     // Fetch SMS templates
@@ -358,7 +358,7 @@ export default function KartPage() {
     if (selectedOrg) {
       setEmailSubject(`Ventilasjonsrens - ${selectedOrg.name}`);
       setEmailBody(
-        `Hei,\n\nVi tar kontakt angående ventilasjonsrens for ${selectedOrg.name} (${selectedOrg.address}).\n\nVi tilbyr profesjonell ventilasjonsrens og ønsker å avtale et tidspunkt for befaring.\n\nVennlig hilsen\nKonvoi`
+        `Hei,\n\nVi tar kontakt angående ventilasjonsrens for ${selectedOrg.name} (${selectedOrg.address}).\n\nVi tilbyr profesjonell ventilasjonsrens og ønsker å avtale et tidspunkt for befaring.\n\nVennlig hilsen\nTurbo`
       );
     }
     setShowEmailModal(true);

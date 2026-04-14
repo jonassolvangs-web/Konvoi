@@ -39,9 +39,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-56 bg-gray-50 border-r border-gray-200">
         <div className="flex items-center gap-3 px-5 h-16 border-b border-gray-200">
           <div className="h-8 w-8 rounded-lg bg-black flex items-center justify-center">
-            <span className="text-white text-sm font-bold">K</span>
+            <span className="text-white text-sm font-bold">T</span>
           </div>
-          <span className="text-sm font-bold">KONVOI</span>
+          <span className="text-sm font-bold">TURBO</span>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1">
           {adminTabs.map((tab) => {

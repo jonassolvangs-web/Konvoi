@@ -10,7 +10,7 @@ function ensureVapid() {
   if (!publicKey || !privateKey) {
     throw new Error('VAPID keys not configured');
   }
-  webpush.setVapidDetails('mailto:push@konvoi.no', publicKey, privateKey);
+  webpush.setVapidDetails('mailto:push@turbo.no', publicKey, privateKey);
   vapidConfigured = true;
 }
 

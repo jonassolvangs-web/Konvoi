@@ -38,9 +38,9 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
         <div className="flex flex-col items-center mb-8">
           <div className="h-14 w-14 rounded-2xl bg-black flex items-center justify-center mb-4">
-            <span className="text-white text-xl font-bold">K</span>
+            <span className="text-white text-xl font-bold">T</span>
           </div>
-          <h1 className="text-xl font-bold">KONVOI</h1>
+          <h1 className="text-xl font-bold">TURBO</h1>
           <p className="text-sm text-gray-500 mt-1">Logg inn for å fortsette</p>
         </div>
 

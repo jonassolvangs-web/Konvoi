@@ -1,4 +1,4 @@
-const CACHE_NAME = 'konvoi-v1';
+const CACHE_NAME = 'turbo-v1';
 const PRECACHE_URLS = [
   '/',
   '/auth/login',
@@ -27,7 +27,7 @@ self.addEventListener('push', (event) => {
   if (!event.data) return;
   const data = event.data.json();
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Konvoi', {
+    self.registration.showNotification(data.title || 'Turbo', {
       body: data.body || '',
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-192x192.png',

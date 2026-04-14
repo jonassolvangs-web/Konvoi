@@ -208,7 +208,7 @@ export default function DialerView({ organizations, feltselgere, stats, onCallLo
 
   // ── SMS ──
   const openSmsModal = () => {
-    setSmsText(`Hei, dette er fra Konvoi. Vi kontakter deg angående ventilasjonsrens for ${org.name}. Vennligst ta kontakt for å avtale tidspunkt.`);
+    setSmsText(`Hei, dette er fra Turbo. Vi kontakter deg angående ventilasjonsrens for ${org.name}. Vennligst ta kontakt for å avtale tidspunkt.`);
     setShowSmsModal(true);
   };
   const handleSendSms = () => {
@@ -221,7 +221,7 @@ export default function DialerView({ organizations, feltselgere, stats, onCallLo
   // ── Email ──
   const openEmailModal = () => {
     setEmailSubject(`Ventilasjonsrens - ${org.name}`);
-    setEmailBody(`Hei,\n\nVi tar kontakt angående ventilasjonsrens for ${org.name} (${org.address}).\n\nVi tilbyr profesjonell ventilasjonsrens og ønsker å avtale et tidspunkt for befaring.\n\nVennlig hilsen\nKonvoi`);
+    setEmailBody(`Hei,\n\nVi tar kontakt angående ventilasjonsrens for ${org.name} (${org.address}).\n\nVi tilbyr profesjonell ventilasjonsrens og ønsker å avtale et tidspunkt for befaring.\n\nVennlig hilsen\nTurbo`);
     setShowEmailModal(true);
   };
   const handleSendEmail = async () => {

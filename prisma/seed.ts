@@ -29,8 +29,8 @@ async function main() {
 
   const admin = await prisma.user.create({
     data: {
-      name: 'Admin Konvoi',
-      email: 'admin@konvoi.no',
+      name: 'Admin Turbo',
+      email: 'admin@turbo.no',
       phone: '90000001',
       passwordHash,
       roles: JSON.stringify(['ADMIN', 'MOTEBOOKER', 'FELTSELGER', 'TEKNIKER']),
@@ -41,7 +41,7 @@ async function main() {
   const mari = await prisma.user.create({
     data: {
       name: 'Mari Hansen',
-      email: 'mari@konvoi.no',
+      email: 'mari@turbo.no',
       phone: '90000002',
       passwordHash,
       roles: JSON.stringify(['MOTEBOOKER']),
@@ -52,7 +52,7 @@ async function main() {
   const erik = await prisma.user.create({
     data: {
       name: 'Erik Nilsen',
-      email: 'erik@konvoi.no',
+      email: 'erik@turbo.no',
       phone: '90000003',
       passwordHash,
       roles: JSON.stringify(['FELTSELGER', 'MOTEBOOKER']),
@@ -63,7 +63,7 @@ async function main() {
   const lars = await prisma.user.create({
     data: {
       name: 'Lars Berg',
-      email: 'lars@konvoi.no',
+      email: 'lars@turbo.no',
       phone: '90000004',
       passwordHash,
       roles: JSON.stringify(['TEKNIKER']),
@@ -74,7 +74,7 @@ async function main() {
   const jonas = await prisma.user.create({
     data: {
       name: 'Jonas Dahl',
-      email: 'jonas@konvoi.no',
+      email: 'jonas@turbo.no',
       phone: '90000005',
       passwordHash,
       roles: JSON.stringify(['FELTSELGER', 'TEKNIKER']),
@@ -561,10 +561,10 @@ async function main() {
     { key: 'office_address', value: 'Storgata 1, 0155 Oslo' },
     { key: 'office_lat', value: '59.9139' },
     { key: 'office_lon', value: '10.7522' },
-    { key: 'company_name', value: 'Konvoi AS' },
+    { key: 'company_name', value: 'Turbo AS' },
     { key: 'company_org_number', value: '912345678' },
     { key: 'company_phone', value: '22334455' },
-    { key: 'company_email', value: 'post@konvoi.no' },
+    { key: 'company_email', value: 'post@turbo.no' },
     { key: 'cleaning_interval_years', value: '3' },
   ];
 

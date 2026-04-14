@@ -46,7 +46,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[1000] flex items-end md:items-center justify-center"
+      className="fixed inset-0 z-[1000] flex items-center justify-center px-4"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}
@@ -54,7 +54,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
       <div className="fixed inset-0 bg-black/40" />
       <div
         className={cn(
-          'relative z-10 w-full bg-white rounded-t-2xl md:rounded-2xl max-h-[90vh] overflow-y-auto',
+          'relative z-10 w-full bg-white rounded-2xl max-h-[85vh] overflow-y-auto',
           sizeStyles[size]
         )}
       >

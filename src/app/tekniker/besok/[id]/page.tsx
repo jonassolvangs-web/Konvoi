@@ -358,7 +358,7 @@ export default function BesokDetailPage() {
           </Button>
           <Button
             fullWidth
-            variant="danger"
+            variant="secondary"
             onClick={handleNei}
             isLoading={markingNei}
           >
