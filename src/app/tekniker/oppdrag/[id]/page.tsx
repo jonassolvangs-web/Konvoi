@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Clock, CheckCircle,
   CreditCard, Trash2, Camera, Send,
-  Image as ImageIcon, XCircle,
+  Image as ImageIcon, XCircle, Edit3, Calendar,
 } from 'lucide-react';
 import Card from '@/components/ui/card';
 import Button from '@/components/ui/button';
@@ -129,6 +129,10 @@ export default function TeknikerOppdragDetailPage() {
   const [manualEmails, setManualEmails] = useState<Record<string, string>>({}); // unitId -> email
   const [visitNotes, setVisitNotes] = useState<Record<string, string>>({}); // techVisitId -> notes
   const [savingNote, setSavingNote] = useState<string | null>(null);
+  const [editingDate, setEditingDate] = useState(false);
+  const [newDate, setNewDate] = useState('');
+  const [newTime, setNewTime] = useState('');
+  const [savingDate, setSavingDate] = useState(false);
 
   // Editable customer info state
   const [customerName, setCustomerName] = useState<Record<string, string>>({});
@@ -364,6 +368,29 @@ export default function TeknikerOppdragDetailPage() {
     }
   };
 
+  const handleSaveDate = async () => {
+    if (!newDate || !newTime) {
+      toast.error('Velg dato og klokkeslett');
+      return;
+    }
+    setSavingDate(true);
+    try {
+      const scheduledAt = new Date(`${newDate}T${newTime}`).toISOString();
+      await fetch(`/api/work-orders/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledAt }),
+      });
+      toast.success('Dato oppdatert');
+      setEditingDate(false);
+      fetchWorkOrder();
+    } catch {
+      toast.error('Kunne ikke oppdatere dato');
+    } finally {
+      setSavingDate(false);
+    }
+  };
+
   const handleSaveVisitNote = async (techVisitId: string) => {
     const note = visitNotes[techVisitId];
     if (note === undefined) return;
@@ -581,10 +608,56 @@ export default function TeknikerOppdragDetailPage() {
 
       {/* Schedule info */}
       <Card className="mb-4">
-        <div className="flex items-center gap-1.5 text-sm text-gray-600">
-          <Clock className="h-4 w-4" />
-          <span>{formatDate(workOrder.scheduledAt)} kl. {formatTime(workOrder.scheduledAt)}</span>
-        </div>
+        {editingDate ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-wide">
+              <Calendar className="h-3.5 w-3.5" />
+              Endre dato og tid
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                className="input-field text-sm"
+              />
+              <input
+                type="time"
+                value={newTime}
+                onChange={(e) => setNewTime(e.target.value)}
+                className="input-field text-sm"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" fullWidth onClick={handleSaveDate} isLoading={savingDate}>
+                Lagre
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditingDate(false)}>
+                Avbryt
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-sm text-gray-600">
+              <Clock className="h-4 w-4" />
+              <span>{formatDate(workOrder.scheduledAt)} kl. {formatTime(workOrder.scheduledAt)}</span>
+            </div>
+            {workOrder.status !== 'fullfort' && (
+              <button
+                onClick={() => {
+                  const d = new Date(workOrder.scheduledAt);
+                  setNewDate(d.toISOString().split('T')[0]);
+                  setNewTime(d.toTimeString().slice(0, 5));
+                  setEditingDate(true);
+                }}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+              >
+                <Edit3 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Tech visit info (from besøk) */}
