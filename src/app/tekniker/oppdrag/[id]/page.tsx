@@ -473,6 +473,10 @@ export default function TeknikerOppdragDetailPage() {
       toast.error('Legg inn adresse');
       return;
     }
+    if (!unit.paymentMethod) {
+      toast.error('Velg betalingsløsning først');
+      return;
+    }
 
     setSendingReport(unit.id);
     try {
@@ -938,7 +942,7 @@ export default function TeknikerOppdragDetailPage() {
                           fullWidth
                           onClick={() => handleSendReport(unit)}
                           isLoading={sendingReport === unit.id}
-                          disabled={!(customerName[unit.id]?.trim() ?? unit.dwellingUnit.residentName)}
+                          disabled={!(customerName[unit.id]?.trim() ?? unit.dwellingUnit.residentName) || !unit.paymentMethod}
                         >
                           <Send className="h-3.5 w-3.5" />
                           Send rapport

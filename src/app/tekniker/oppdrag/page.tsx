@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Clock, Building2, Navigation, Trash2, User } from 'lucide-react';
+import { MapPin, Clock, Building2, Navigation, Trash2, Edit3 } from 'lucide-react';
 import Tabs from '@/components/ui/tabs';
 import Card from '@/components/ui/card';
 import StatusBadge from '@/components/ui/status-badge';
@@ -10,11 +10,13 @@ import LoadingSpinner from '@/components/ui/loading-spinner';
 import EmptyState from '@/components/ui/empty-state';
 import Modal from '@/components/ui/modal';
 import Button from '@/components/ui/button';
+import AvailableSlotPicker from '@/components/ui/available-slot-picker';
 import { formatDate, formatTime, formatDistance } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 interface WorkOrder {
   id: string;
+  technicianId: string;
   scheduledAt: string;
   status: string;
   completedAt: string | null;
@@ -67,6 +69,10 @@ export default function TeknikerOppdragPage() {
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editingDateId, setEditingDateId] = useState<string | null>(null);
+  const [newDate, setNewDate] = useState('');
+  const [newTime, setNewTime] = useState('');
+  const [savingDate, setSavingDate] = useState(false);
 
   const fetchWorkOrders = async () => {
     try {
@@ -97,6 +103,31 @@ export default function TeknikerOppdragPage() {
       toast.error('Kunne ikke slette oppdrag');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleSaveDate = async (woId: string) => {
+    if (!newDate || !newTime) {
+      toast.error('Velg dato og klokkeslett');
+      return;
+    }
+    setSavingDate(true);
+    try {
+      const scheduledAt = new Date(`${newDate}T${newTime}`).toISOString();
+      await fetch(`/api/work-orders/${woId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledAt }),
+      });
+      toast.success('Tidspunkt oppdatert');
+      setEditingDateId(null);
+      setNewDate('');
+      setNewTime('');
+      fetchWorkOrders();
+    } catch {
+      toast.error('Kunne ikke oppdatere tidspunkt');
+    } finally {
+      setSavingDate(false);
     }
   };
 
@@ -218,10 +249,52 @@ export default function TeknikerOppdragPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span>{formatDate(wo.scheduledAt)} kl. {formatTime(wo.scheduledAt)}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>{formatDate(wo.scheduledAt)} kl. {formatTime(wo.scheduledAt)}</span>
+                    </div>
+                    {wo.status !== 'fullfort' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (editingDateId === wo.id) {
+                            setEditingDateId(null);
+                          } else {
+                            setEditingDateId(wo.id);
+                            setNewDate('');
+                            setNewTime('');
+                          }
+                        }}
+                        className="p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                      >
+                        <Edit3 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
+                  {editingDateId === wo.id && (
+                    <div className="mt-2 mb-2 p-3 bg-gray-50 rounded-xl space-y-3" onClick={(e) => e.stopPropagation()}>
+                      <AvailableSlotPicker
+                        userId={wo.technicianId}
+                        onSelect={(date, time) => {
+                          setNewDate(date);
+                          setNewTime(time);
+                        }}
+                        selectedDate={newDate || null}
+                        selectedTime={newTime || null}
+                      />
+                      {newDate && newTime && (
+                        <div className="flex gap-2">
+                          <Button size="sm" fullWidth onClick={() => handleSaveDate(wo.id)} isLoading={savingDate}>
+                            Lagre ny tid
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => { setEditingDateId(null); setNewDate(''); setNewTime(''); }}>
+                            Avbryt
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center gap-1.5 text-xs text-gray-500">
                     <MapPin className="h-3.5 w-3.5" />
                     <span>{wo.organization.address}</span>
