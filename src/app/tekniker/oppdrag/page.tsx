@@ -18,6 +18,7 @@ interface WorkOrder {
   scheduledAt: string;
   status: string;
   completedAt: string | null;
+  notes: string | null;
   organization: {
     id: string;
     name: string;
@@ -244,11 +245,16 @@ export default function TeknikerOppdragPage() {
                     </div>
                   )}
                 </div>
-                {wo.techVisits?.some((tv) => tv.notes) && (
-                  <div className="mt-2 pt-2 border-t border-gray-100">
-                    {wo.techVisits.filter((tv) => tv.notes).map((tv, i) => (
-                      <p key={i} className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-lg">
-                        {tv.notes}
+                {(wo.notes || wo.techVisits?.some((tv) => tv.notes)) && (
+                  <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                    {wo.notes && (
+                      <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1.5 rounded-lg">
+                        📝 {wo.notes}
+                      </p>
+                    )}
+                    {wo.techVisits?.filter((tv) => tv.notes).map((tv, i) => (
+                      <p key={i} className="text-xs text-amber-700 bg-amber-50 px-2 py-1.5 rounded-lg">
+                        📝 {tv.notes}
                       </p>
                     ))}
                   </div>
