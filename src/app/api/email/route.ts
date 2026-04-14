@@ -56,20 +56,35 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { data, error } = await resend.emails.send({
-      from: `Godt Vedlikehold <${fromEmail}>`,
-      to,
-      subject,
-      html: processedHtml,
-      attachments: attachments.length > 0 ? attachments : undefined,
-    });
+    // Send separate emails to each recipient
+    const recipients = Array.isArray(to) ? to : [to];
+    const results = [];
 
-    if (error) {
-      console.error('Resend error:', JSON.stringify(error));
-      return NextResponse.json({ error: `Kunne ikke sende e-post: ${error.message || JSON.stringify(error)}` }, { status: 500 });
+    for (const recipient of recipients) {
+      console.log(`Sending email to: ${recipient}, subject: ${subject}`);
+      const { data, error } = await resend.emails.send({
+        from: `Godt Vedlikehold <${fromEmail}>`,
+        to: recipient,
+        subject,
+        html: processedHtml,
+        attachments: attachments.length > 0 ? attachments : undefined,
+      });
+
+      if (error) {
+        console.error(`Resend error for ${recipient}:`, JSON.stringify(error));
+        results.push({ to: recipient, error: error.message || JSON.stringify(error) });
+      } else {
+        console.log(`Email sent to ${recipient} - ID: ${data?.id}`);
+        results.push({ to: recipient, id: data?.id });
+      }
     }
 
-    return NextResponse.json({ success: true, id: data?.id });
+    const failed = results.filter(r => r.error);
+    if (failed.length === results.length) {
+      return NextResponse.json({ error: `Kunne ikke sende e-post: ${failed[0].error}` }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, results });
   } catch (error: any) {
     if (error.message === 'Ikke autentisert') {
       return NextResponse.json({ error: 'Ikke autentisert' }, { status: 401 });

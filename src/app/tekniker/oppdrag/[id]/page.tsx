@@ -460,7 +460,6 @@ export default function TeknikerOppdragDetailPage() {
   };
 
   const handleSendReport = async (unit: WorkOrderUnit) => {
-    const recipientEmail = 'hei@godtvedlikehold.no';
     const name = (customerName[unit.id] ?? unit.dwellingUnit.residentName ?? '').trim();
     const address = (customerAddress[unit.id] ?? workOrder?.organization.address ?? '').trim();
 
@@ -513,8 +512,9 @@ export default function TeknikerOppdragDetailPage() {
       const reportHtml = generateReportHtml({
         organizationName: name,
         organizationAddress: address,
+        organizationPostalCode: workOrder.organization.postalCode || '',
         technicianName: workOrder.technician.name,
-        technicianPhone: '',
+        technicianPhone: '936 72 506',
         technicianEmail: 'haavard@godtvedlikehold.no',
         completedDate,
         units: [unitWithCustomerInfo],
@@ -536,13 +536,18 @@ export default function TeknikerOppdragDetailPage() {
         return;
       }
 
+      // Send to both internal email and customer email (if available)
+      const recipients = ['hei@godtvedlikehold.no'];
+      const custEmail = (customerEmail[unit.id] ?? unit.dwellingUnit.residentEmail ?? '').trim();
+      if (custEmail) recipients.push(custEmail);
+
       const emailRes = await fetch('/api/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: recipientEmail,
+          to: recipients,
           subject: `Rapport Ventilasjonsrens - ${name} - ${address}`,
-          html: reportHtml,
+          html: greetingHtml,
           pdfBase64,
         }),
       });
