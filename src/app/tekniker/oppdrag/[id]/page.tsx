@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
-  ArrowLeft, MapPin, Clock, Play, CheckCircle, Square, CheckSquare,
-  Wind, CreditCard, PenTool, Building2, Trash2, Edit3, Camera, Send,
+  ArrowLeft, Clock, CheckCircle,
+  CreditCard, Trash2, Camera, Send,
   Image as ImageIcon, XCircle,
 } from 'lucide-react';
 import Card from '@/components/ui/card';
@@ -105,8 +105,6 @@ export default function TeknikerOppdragDetailPage() {
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeUnit, setActiveUnit] = useState<string | null>(null);
-  const [showSignature, setShowSignature] = useState(false);
-  const [completing, setCompleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -129,6 +127,8 @@ export default function TeknikerOppdragDetailPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null); // 'before-{unitId}' | 'after-{unitId}'
   const [sendingReport, setSendingReport] = useState<string | null>(null); // unitId
   const [manualEmails, setManualEmails] = useState<Record<string, string>>({}); // unitId -> email
+  const [visitNotes, setVisitNotes] = useState<Record<string, string>>({}); // techVisitId -> notes
+  const [savingNote, setSavingNote] = useState<string | null>(null);
 
   // Editable customer info state
   const [customerName, setCustomerName] = useState<Record<string, string>>({});
@@ -136,9 +136,6 @@ export default function TeknikerOppdragDetailPage() {
   const [customerPhone, setCustomerPhone] = useState<Record<string, string>>({});
   const [customerAddress, setCustomerAddress] = useState<Record<string, string>>({});
 
-  // Signature canvas
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const isDrawingRef = useRef(false);
 
   const fetchWorkOrder = useCallback(async () => {
     try {
@@ -156,19 +153,18 @@ export default function TeknikerOppdragDetailPage() {
     fetchWorkOrder();
   }, [fetchWorkOrder]);
 
-  const handleStartOrder = async () => {
-    try {
-      await fetch(`/api/work-orders/${id}`, {
+  // Auto-start work order when technician opens the page
+  const hasAutoStarted = useRef(false);
+  useEffect(() => {
+    if (workOrder && workOrder.status === 'planlagt' && !hasAutoStarted.current) {
+      hasAutoStarted.current = true;
+      fetch(`/api/work-orders/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'pagaar' }),
-      });
-      toast.success('Oppdrag startet');
-      fetchWorkOrder();
-    } catch {
-      toast.error('Kunne ikke starte oppdrag');
+      }).then(() => fetchWorkOrder());
     }
-  };
+  }, [workOrder, id, fetchWorkOrder]);
 
   const handleDeleteOrder = async () => {
     setDeleting(true);
@@ -368,6 +364,25 @@ export default function TeknikerOppdragDetailPage() {
     }
   };
 
+  const handleSaveVisitNote = async (techVisitId: string) => {
+    const note = visitNotes[techVisitId];
+    if (note === undefined) return;
+    setSavingNote(techVisitId);
+    try {
+      await fetch(`/api/tech-visits/${techVisitId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: note }),
+      });
+      toast.success('Notat lagret');
+      fetchWorkOrder();
+    } catch {
+      toast.error('Kunne ikke lagre notat');
+    } finally {
+      setSavingNote(null);
+    }
+  };
+
   const getUnitEmail = (unit: WorkOrderUnit) => {
     return unit.dwellingUnit.residentEmail || workOrder?.organization.chairmanEmail || null;
   };
@@ -522,7 +537,21 @@ export default function TeknikerOppdragDetailPage() {
         body: JSON.stringify({ unitId: unit.id, reportSentAt: new Date().toISOString() }),
       });
 
-      toast.success('Rapport sendt!');
+      // Check if all units now have reports sent – if so, auto-complete the work order
+      const otherUnitsAllSent = workOrder.units
+        .filter((u) => u.id !== unit.id)
+        .every((u) => u.reportSentAt);
+
+      if (otherUnitsAllSent) {
+        await fetch(`/api/work-orders/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'fullfort' }),
+        });
+        toast.success('Rapport sendt og oppdrag fullført!');
+      } else {
+        toast.success('Rapport sendt!');
+      }
       fetchWorkOrder();
     } catch (err: any) {
       toast.error(err.message || 'Kunne ikke sende rapport');
@@ -531,94 +560,10 @@ export default function TeknikerOppdragDetailPage() {
     }
   };
 
-  // Signature canvas handlers
-  const initCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
 
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = rect.height * 2;
-    ctx.scale(2, 2);
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-  }, []);
-
-  useEffect(() => {
-    if (showSignature) {
-      setTimeout(initCanvas, 100);
-    }
-  }, [showSignature, initCanvas]);
-
-  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    if ('touches' in e) {
-      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    }
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
-  };
-
-  const startDraw = (e: React.TouchEvent | React.MouseEvent) => {
-    isDrawingRef.current = true;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const { x, y } = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-  };
-
-  const draw = (e: React.TouchEvent | React.MouseEvent) => {
-    if (!isDrawingRef.current) return;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const { x, y } = getPos(e);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  };
-
-  const endDraw = () => {
-    isDrawingRef.current = false;
-  };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  const handleComplete = async () => {
-    setCompleting(true);
-    try {
-      let signatureUrl = null;
-      if (canvasRef.current) {
-        signatureUrl = canvasRef.current.toDataURL('image/png');
-      }
-      await fetch(`/api/work-orders/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'fullfort', signatureUrl }),
-      });
-      toast.success('Oppdrag fullført!');
-      setShowSignature(false);
-      fetchWorkOrder();
-    } catch {
-      toast.error('Kunne ikke fullføre oppdrag');
-    } finally {
-      setCompleting(false);
-    }
-  };
 
   if (loading) return <LoadingSpinner />;
   if (!workOrder) return <EmptyState title="Oppdrag ikke funnet" description="Kunne ikke finne dette oppdraget" />;
-
-  const totalPrice = workOrder.units.reduce((sum, u) => sum + u.price, 0);
 
   return (
     <div className="page-container">
@@ -678,39 +623,36 @@ export default function TeknikerOppdragDetailPage() {
                   <span className="font-medium">{tv.residentName}</span>
                 </div>
               )}
-              {tv.notes && (
-                <div className="mt-1 p-2 bg-gray-50 rounded-lg text-sm text-gray-600">{tv.notes}</div>
-              )}
+              <div className="mt-2">
+                <label className="text-xs font-medium text-gray-500 block mb-1">Notat</label>
+                <textarea
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 p-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  rows={2}
+                  placeholder="Legg til notat..."
+                  value={visitNotes[tv.id] ?? tv.notes ?? ''}
+                  onChange={(e) => setVisitNotes((prev) => ({ ...prev, [tv.id]: e.target.value }))}
+                  onBlur={() => {
+                    const current = visitNotes[tv.id];
+                    if (current !== undefined && current !== (tv.notes ?? '')) {
+                      handleSaveVisitNote(tv.id);
+                    }
+                  }}
+                />
+              </div>
             </div>
           ))}
         </Card>
       )}
 
       {/* Action buttons */}
-      <div className="flex gap-2 mb-4">
-        {workOrder.status === 'planlagt' && (
-          <>
-            <Button fullWidth onClick={handleStartOrder}>
-              <Play className="h-4 w-4" />
-              Start oppdrag
-            </Button>
-            <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </>
-        )}
-        {workOrder.status === 'pagaar' && (
-          <>
-            <Button fullWidth onClick={() => setShowSignature(true)}>
-              <CheckCircle className="h-4 w-4" />
-              Fullfør oppdrag
-            </Button>
-            <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-              <XCircle className="h-4 w-4" />
-            </Button>
-          </>
-        )}
-      </div>
+      {workOrder.status !== 'fullfort' && (
+        <div className="flex gap-2 mb-4">
+          <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+            <XCircle className="h-4 w-4" />
+            Avbryt oppdrag
+          </Button>
+        </div>
+      )}
 
       {/* Units */}
       <h2 className="text-sm font-semibold mb-3">Enheter ({workOrder.units.length})</h2>
@@ -746,7 +688,7 @@ export default function TeknikerOppdragDetailPage() {
               </div>
 
               {/* Expanded content */}
-              {isActive && (workOrder.status === 'pagaar' || workOrder.status === 'fullfort') && (
+              {isActive && (
                 <div className="border-t border-gray-100 p-4 space-y-4">
 
                   {/* ── KUNDEINFORMASJON ── */}
@@ -1093,46 +1035,6 @@ export default function TeknikerOppdragDetailPage() {
         </div>
       </Modal>
 
-      {/* Signature modal */}
-      <Modal isOpen={showSignature} onClose={() => setShowSignature(false)} title="Signatur og fullføring" size="lg">
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Sameiet signerer for å bekrefte at arbeidet er utført.
-          </p>
-
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
-            <canvas
-              ref={canvasRef}
-              className="w-full h-48 bg-gray-50 touch-none"
-              onMouseDown={startDraw}
-              onMouseMove={draw}
-              onMouseUp={endDraw}
-              onMouseLeave={endDraw}
-              onTouchStart={startDraw}
-              onTouchMove={draw}
-              onTouchEnd={endDraw}
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={clearCanvas}>
-              <Trash2 className="h-4 w-4" />
-              Slett
-            </Button>
-          </div>
-
-          <div className="border-t border-gray-100 pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium">Totalt</span>
-              <span className="text-lg font-bold">{totalPrice > 0 ? formatCurrency(totalPrice) : '–'}</span>
-            </div>
-            <Button fullWidth onClick={handleComplete} isLoading={completing}>
-              <CheckCircle className="h-4 w-4" />
-              Fullfør oppdrag
-            </Button>
-          </div>
-        </div>
-      </Modal>
 
       {/* Delete/cancel confirmation modal */}
       <Modal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} title={workOrder.status === 'pagaar' ? 'Avbryt oppdrag?' : 'Slett oppdrag?'}>
