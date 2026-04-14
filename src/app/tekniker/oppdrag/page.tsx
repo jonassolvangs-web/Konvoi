@@ -232,17 +232,15 @@ export default function TeknikerOppdragPage() {
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-sm font-semibold">{wo.organization.name}</h3>
                   <div className="flex items-center gap-1.5">
-                    {wo.status !== 'fullfort' && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteId(wo.id);
-                        }}
-                        className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteId(wo.id);
+                      }}
+                      className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
 
@@ -252,23 +250,21 @@ export default function TeknikerOppdragPage() {
                       <Clock className="h-3.5 w-3.5" />
                       <span>{formatDate(wo.scheduledAt)} kl. {formatTime(wo.scheduledAt)}</span>
                     </div>
-                    {wo.status !== 'fullfort' && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (editingDateId === wo.id) {
-                            setEditingDateId(null);
-                          } else {
-                            setEditingDateId(wo.id);
-                            setNewDate('');
-                            setNewTime('');
-                          }
-                        }}
-                        className="p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                      >
-                        <Edit3 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (editingDateId === wo.id) {
+                          setEditingDateId(null);
+                        } else {
+                          setEditingDateId(wo.id);
+                          setNewDate('');
+                          setNewTime('');
+                        }
+                      }}
+                      className="p-1 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                   {editingDateId === wo.id && (
                     <div className="mt-2 mb-2 p-3 bg-gray-50 rounded-xl space-y-3" onClick={(e) => e.stopPropagation()}>
