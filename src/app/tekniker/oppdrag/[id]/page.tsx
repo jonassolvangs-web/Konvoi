@@ -595,9 +595,9 @@ export default function TeknikerOppdragDetailPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'fullfort' }),
         });
-        toast.success(`Rapport sendt til ${recipients.join(' og ')} - oppdrag fullført!`);
+        toast.success(`Rapport sendt til hei@godtvedlikehold.no${custEmail ? ' og ' + custEmail : ''} - oppdrag fullført!`);
       } else {
-        toast.success(`Rapport sendt til ${recipients.join(' og ')}`);
+        toast.success(`Rapport sendt til hei@godtvedlikehold.no${custEmail ? ' og ' + custEmail : ''}`);
       }
       fetchWorkOrder();
     } catch (err: any) {
