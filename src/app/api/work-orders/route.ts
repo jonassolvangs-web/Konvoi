@@ -51,6 +51,45 @@ export async function GET(req: NextRequest) {
       orderBy: { scheduledAt: 'asc' },
     });
 
+    // Auto-complete work orders where all units have reports sent
+    const toComplete = workOrders.filter(
+      (wo) => wo.status !== 'fullfort' && wo.units.length > 0 && wo.units.every((u) => u.reportSentAt)
+    );
+    for (const wo of toComplete) {
+      await prisma.$transaction(async (tx) => {
+        await tx.workOrder.update({
+          where: { id: wo.id },
+          data: { status: 'fullfort', completedAt: new Date() },
+        });
+        await tx.organization.update({
+          where: { id: wo.organizationId },
+          data: { status: 'fullfort' },
+        });
+        const totalRevenue = wo.units.reduce((sum, u) => sum + u.price, 0);
+        const airImprovements = wo.units
+          .filter((u) => u.airBefore && u.airAfter)
+          .map((u) => ((u.airAfter! - u.airBefore!) / u.airBefore!) * 100);
+        const avgImprovement = airImprovements.length > 0
+          ? airImprovements.reduce((a, b) => a + b, 0) / airImprovements.length
+          : null;
+        const nextCleaningDate = new Date();
+        nextCleaningDate.setFullYear(nextCleaningDate.getFullYear() + 3);
+        await tx.cleaningHistory.create({
+          data: {
+            organizationId: wo.organizationId,
+            completedDate: new Date(),
+            nextCleaningDate,
+            reminderStatus: 'ok',
+            numUnitsCompleted: wo.units.length,
+            totalRevenue,
+            avgAirImprovement: avgImprovement,
+          },
+        });
+      });
+      wo.status = 'fullfort';
+      wo.completedAt = new Date();
+    }
+
     return NextResponse.json({ workOrders });
   } catch (error: any) {
     if (error.message === 'Ikke autentisert') return NextResponse.json({ error: 'Ikke autentisert' }, { status: 401 });
