@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
       return { workOrderId: wo.id, dateStr, timeStr };
     });
 
-    // Send confirmation emails (non-blocking)
+    // Send confirmation emails (must await before response or Vercel kills the function)
     const html = generateConfirmationEmail({
       name: data.name,
       address: data.address,
@@ -189,27 +189,35 @@ export async function POST(req: NextRequest) {
       time: result.timeStr,
     });
 
+    const emailPromises: Promise<any>[] = [];
+
     // To customer
     if (data.email) {
-      resend.emails.send({
-        from: `Godt Vedlikehold <${fromEmail}>`,
-        to: data.email,
-        subject: 'Bekreftelse – Ventilasjonsrens',
-        html,
-      }).catch((err) => {
-        console.error('Failed to send confirmation email to customer:', err);
-      });
+      emailPromises.push(
+        resend.emails.send({
+          from: `Godt Vedlikehold <${fromEmail}>`,
+          to: data.email,
+          subject: 'Bekreftelse – Ventilasjonsrens',
+          html,
+        }).catch((err) => {
+          console.error('Failed to send confirmation email to customer:', err);
+        })
+      );
     }
 
     // To Godt Vedlikehold
-    resend.emails.send({
-      from: `Godt Vedlikehold <${fromEmail}>`,
-      to: 'hei@godtvedlikehold.no',
-      subject: `Ny booking – ${data.name} – ${result.dateStr} kl. ${result.timeStr}`,
-      html,
-    }).catch((err) => {
-      console.error('Failed to send notification email to admin:', err);
-    });
+    emailPromises.push(
+      resend.emails.send({
+        from: `Godt Vedlikehold <${fromEmail}>`,
+        to: 'hei@godtvedlikehold.no',
+        subject: `Ny booking – ${data.name} – ${result.dateStr} kl. ${result.timeStr}`,
+        html,
+      }).catch((err) => {
+        console.error('Failed to send notification email to admin:', err);
+      })
+    );
+
+    await Promise.all(emailPromises);
 
     return NextResponse.json({
       success: true,
