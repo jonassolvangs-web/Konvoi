@@ -50,7 +50,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       });
       if (!wo) throw new Error('Ikke funnet');
 
-      // Delete work order units
+      // Delete related records
+      await tx.techVisit.deleteMany({ where: { workOrderId: id } });
       await tx.workOrderUnit.deleteMany({ where: { workOrderId: id } });
 
       // Delete the work order

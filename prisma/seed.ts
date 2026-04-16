@@ -6,7 +6,9 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // Clear existing data
+  // Clear existing data (order matters for FK constraints)
+  await prisma.techVisit.deleteMany();
+  await prisma.pushSubscription.deleteMany();
   await prisma.chatMessage.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.callRecord.deleteMany();
@@ -18,8 +20,10 @@ async function main() {
   await prisma.visit.deleteMany();
   await prisma.appointment.deleteMany();
   await prisma.availability.deleteMany();
+  await prisma.territory.deleteMany();
   await prisma.serviceProduct.deleteMany();
   await prisma.organization.deleteMany();
+  await prisma.smsTemplate.deleteMany();
   await prisma.setting.deleteMany();
   await prisma.user.deleteMany();
 
@@ -82,7 +86,19 @@ async function main() {
     },
   });
 
-  console.log('Created 5 users');
+  const melbyPasswordHash = await bcrypt.hash('turbo', 10);
+  const melby = await prisma.user.create({
+    data: {
+      name: 'Melby',
+      email: 'melby@turbo.no',
+      phone: '93672506',
+      passwordHash: melbyPasswordHash,
+      roles: JSON.stringify(['TEKNIKER']),
+      activeRole: 'TEKNIKER',
+    },
+  });
+
+  console.log('Created 6 users');
 
   // ─── Service Products ───────────────────────────
 
@@ -193,13 +209,13 @@ async function main() {
       assignedToId = erik.id;
     } else if (i < 20) {
       status = 'venter_tekniker';
-      assignedToId = erik.id;
+      assignedToId = melby.id;
     } else if (i < 23) {
       status = 'rens_pagaar';
-      assignedToId = lars.id;
+      assignedToId = melby.id;
     } else if (i < 25) {
       status = 'fullfort';
-      assignedToId = erik.id;
+      assignedToId = melby.id;
     }
 
     const created = await prisma.organization.create({
@@ -296,6 +312,45 @@ async function main() {
     },
   });
 
+  // Melby-besøk
+  const visit3 = await prisma.visit.create({
+    data: {
+      organizationId: createdOrgs[20].id,
+      userId: melby.id,
+      source: 'booking',
+      status: 'pagaar',
+      startedAt: new Date(),
+      unitsSold: 2,
+      totalRevenue: 9980,
+    },
+  });
+
+  const visit4 = await prisma.visit.create({
+    data: {
+      organizationId: createdOrgs[23].id,
+      userId: melby.id,
+      source: 'booking',
+      status: 'fullfort',
+      startedAt: new Date(Date.now() - 3 * 86400000),
+      completedAt: new Date(Date.now() - 3 * 86400000 + 3600000),
+      unitsSold: 3,
+      totalRevenue: 14970,
+    },
+  });
+
+  const visit5 = await prisma.visit.create({
+    data: {
+      organizationId: createdOrgs[24].id,
+      userId: melby.id,
+      source: 'dor_til_dor',
+      status: 'fullfort',
+      startedAt: new Date(Date.now() - 86400000),
+      completedAt: new Date(Date.now() - 86400000 + 5400000),
+      unitsSold: 4,
+      totalRevenue: 19960,
+    },
+  });
+
   console.log('Created visits');
 
   // ─── Dwelling Units ───────────────────────────────
@@ -345,7 +400,7 @@ async function main() {
   const wo1 = await prisma.workOrder.create({
     data: {
       organizationId: createdOrgs[20].id,
-      technicianId: lars.id,
+      technicianId: melby.id,
       scheduledAt: new Date(today.setHours(8, 0, 0, 0)),
       status: 'planlagt',
     },
@@ -354,7 +409,7 @@ async function main() {
   const wo2 = await prisma.workOrder.create({
     data: {
       organizationId: createdOrgs[21].id,
-      technicianId: lars.id,
+      technicianId: melby.id,
       scheduledAt: new Date(today.setHours(13, 0, 0, 0)),
       status: 'pagaar',
       startedAt: new Date(),
@@ -364,9 +419,32 @@ async function main() {
   const wo3 = await prisma.workOrder.create({
     data: {
       organizationId: createdOrgs[22].id,
-      technicianId: lars.id,
+      technicianId: melby.id,
       scheduledAt: new Date(tomorrow.setHours(9, 0, 0, 0)),
       status: 'planlagt',
+    },
+  });
+
+  // Fullført oppdrag for melby
+  const wo4 = await prisma.workOrder.create({
+    data: {
+      organizationId: createdOrgs[23].id,
+      technicianId: melby.id,
+      scheduledAt: new Date(Date.now() - 3 * 86400000),
+      status: 'fullfort',
+      startedAt: new Date(Date.now() - 3 * 86400000),
+      completedAt: new Date(Date.now() - 3 * 86400000 + 3600000),
+    },
+  });
+
+  const wo5 = await prisma.workOrder.create({
+    data: {
+      organizationId: createdOrgs[24].id,
+      technicianId: melby.id,
+      scheduledAt: new Date(Date.now() - 86400000),
+      status: 'fullfort',
+      startedAt: new Date(Date.now() - 86400000),
+      completedAt: new Date(Date.now() - 86400000 + 5400000),
     },
   });
 
@@ -384,7 +462,7 @@ async function main() {
     { id: 10, label: 'Dokumentasjon og bilder', checked: false },
   ];
 
-  for (const wo of [wo1, wo2, wo3]) {
+  for (const wo of [wo1, wo2, wo3, wo4, wo5]) {
     const orgId = wo.organizationId;
     for (let i = 1; i <= 3; i++) {
       const du = await prisma.dwellingUnit.create({
@@ -588,9 +666,19 @@ async function main() {
 
   await prisma.notification.create({
     data: {
-      userId: lars.id,
+      userId: melby.id,
       title: 'Nytt oppdrag',
-      message: 'Du har fått et nytt renseoppdrag hos Nydalen Boligpark',
+      message: 'Du har fått et nytt renseoppdrag hos Sagene Borettslag',
+      type: 'info',
+      linkUrl: '/tekniker/oppdrag',
+    },
+  });
+
+  await prisma.notification.create({
+    data: {
+      userId: melby.id,
+      title: 'Selvbooking mottatt',
+      message: 'Ny selvbooking: Ola Nordmann – Margarethas vei 5',
       type: 'info',
       linkUrl: '/tekniker/oppdrag',
     },
@@ -620,6 +708,18 @@ async function main() {
         dayOfWeek: dow,
         startTime: '07:00',
         endTime: '17:00',
+      },
+    });
+  }
+
+  // Melby (Tekniker – selvbooking): Mon-Fri 10:00-21:00 (siste slot 20:00)
+  for (let dow = 1; dow <= 5; dow++) {
+    await prisma.availability.create({
+      data: {
+        userId: melby.id,
+        dayOfWeek: dow,
+        startTime: '10:00',
+        endTime: '21:00',
       },
     });
   }
