@@ -57,8 +57,8 @@ function generateConfirmationEmail(data: {
     <div style="background:#FFFFFF;border:1px solid rgba(26,26,46,0.08);border-radius:12px;padding:16px;margin-bottom:24px;">
       <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#1B3C73;margin:0 0 8px;">Din tekniker</p>
       <p style="font-size:15px;font-weight:700;margin:0 0 6px;">H&aring;vard Melby</p>
-      <p style="font-size:14px;color:#6B6B7B;margin:0 0 2px;line-height:1.6;">Telefon: <a href="tel:+4793672506" style="color:#1B3C73;text-decoration:none;">936 72 506</a></p>
-      <p style="font-size:14px;color:#6B6B7B;margin:0;line-height:1.6;">E-post: <a href="mailto:haavard@godtvedlikehold.no" style="color:#1B3C73;text-decoration:none;">haavard@godtvedlikehold.no</a></p>
+      <p style="font-size:14px;color:#6B6B7B;margin:0 0 2px;line-height:1.6;">Telefon: <span style="color:#1B3C73;font-weight:600;">936 72 506</span></p>
+      <p style="font-size:14px;color:#6B6B7B;margin:0;line-height:1.6;">E-post: <span style="color:#1B3C73;font-weight:600;">haavard@godtvedlikehold.no</span></p>
     </div>
 
     <p style="font-size:13px;color:#6B6B7B;margin-bottom:0;">Med vennlig hilsen,<br><strong style="color:#1A1A2E;">Godt Vedlikehold</strong></p>
