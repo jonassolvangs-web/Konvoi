@@ -81,7 +81,9 @@ export default function BestillPage() {
     if (submitting || !selDateKey || !selTime) return;
     setSubmitting(true);
 
-    const scheduledAt = selDateKey + 'T' + selTime.time + ':00';
+    // Convert selected date/time (Oslo local) to proper ISO with timezone
+    const localDate = new Date(`${selDateKey}T${selTime.time}:00`);
+    const scheduledAt = localDate.toISOString();
 
     try {
       const res = await fetch('/api/public/booking/create', {
