@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Clock, Building2, Navigation, Trash2, Edit3 } from 'lucide-react';
+import { MapPin, Clock, Building2, Navigation, Trash2, Edit3, CalendarPlus } from 'lucide-react';
 import Tabs from '@/components/ui/tabs';
 import Card from '@/components/ui/card';
 import LoadingSpinner from '@/components/ui/loading-spinner';
@@ -137,12 +137,15 @@ export default function TeknikerOppdragPage() {
   const weekOrders = activeOrders.filter(
     (wo) => isThisWeek(new Date(wo.scheduledAt))
   );
+  const upcomingOrders = activeOrders.filter(
+    (wo) => new Date(wo.scheduledAt) > new Date() && !isToday(new Date(wo.scheduledAt))
+  );
   const completedOrders = workOrders.filter((wo) => wo.status === 'fullfort');
 
   const tabs = [
     { id: 'idag', label: 'I dag', count: todayOrders.length },
     { id: 'uke', label: 'Denne uken', count: weekOrders.length },
-    { id: 'alle', label: 'Alle', count: activeOrders.length },
+    { id: 'kommende', label: 'Kommende', count: upcomingOrders.length },
     { id: 'fullfort', label: 'Fullført', count: completedOrders.length },
   ];
 
@@ -153,7 +156,7 @@ export default function TeknikerOppdragPage() {
     switch (tab) {
       case 'idag': return sortByTime(todayOrders);
       case 'uke': return sortByTime(weekOrders);
-      case 'alle': return sortByTime(activeOrders);
+      case 'kommende': return sortByTime(upcomingOrders);
       case 'fullfort': return sortByTime(completedOrders);
       default: return sortByTime(todayOrders);
     }
@@ -179,6 +182,21 @@ export default function TeknikerOppdragPage() {
       <h1 className="page-title mb-4">Mine oppdrag</h1>
 
       <Tabs tabs={tabs} activeTab={tab} onChange={setTab} className="mb-4" />
+
+      {/* Banner for upcoming orders when on I dag tab */}
+      {tab === 'idag' && upcomingOrders.length > 0 && (
+        <button
+          onClick={() => setTab('kommende')}
+          className="w-full mb-3 flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700 hover:bg-blue-100 transition-colors"
+        >
+          <CalendarPlus className="h-4 w-4 flex-shrink-0" />
+          <span>
+            {upcomingOrders.length === 1
+              ? `1 kommende oppdrag — ${formatDate(upcomingOrders[0].scheduledAt)}`
+              : `${upcomingOrders.length} kommende oppdrag`}
+          </span>
+        </button>
+      )}
 
       {/* Route summary for today */}
       {tab === 'idag' && todayOrders.length > 0 && (
@@ -213,8 +231,8 @@ export default function TeknikerOppdragPage() {
               ? 'Du har ingen oppdrag i dag'
               : tab === 'uke'
                 ? 'Du har ingen oppdrag denne uken'
-                : tab === 'alle'
-                  ? 'Du har ingen aktive oppdrag'
+                : tab === 'kommende'
+                  ? 'Ingen kommende oppdrag'
                   : 'Ingen fullførte oppdrag ennå'
           }
         />
