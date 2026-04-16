@@ -64,6 +64,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
       if (remainingOrders === 0) {
         // Clean up quick-created org with no remaining orders
+        await tx.filterSubscription.deleteMany({ where: { organizationId: wo.organizationId } });
+        await tx.cleaningHistory.deleteMany({ where: { organizationId: wo.organizationId } });
+        await tx.appointment.deleteMany({ where: { organizationId: wo.organizationId } });
+        await tx.visit.deleteMany({ where: { organizationId: wo.organizationId } });
         await tx.dwellingUnit.deleteMany({ where: { organizationId: wo.organizationId } });
         await tx.chatMessage.deleteMany({ where: { organizationId: wo.organizationId } });
         await tx.callRecord.deleteMany({ where: { organizationId: wo.organizationId } });
