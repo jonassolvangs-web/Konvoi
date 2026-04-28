@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { Resend } from 'resend';
 import { requireAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { defaultChecklist } from '@/lib/constants';
+import { generateOrderConfirmationHtml } from '@/lib/order-confirmation-email';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || 'hei@godtvedlikehold.no';
+const NOTIFY_EMAIL = 'hei@godtvedlikehold.no';
 
 const quickCreateSchema = z.object({
   customerName: z.string().min(1),
@@ -100,6 +106,35 @@ export async function POST(req: NextRequest) {
 
       return wo;
     });
+
+    // Send order confirmation email (non-blocking)
+    try {
+      const confirmationHtml = generateOrderConfirmationHtml({
+        customerName: data.customerName,
+        address: data.address,
+        postalCode: data.postalCode,
+        city: data.city,
+        product: data.product || data.orderType || 'Ventilasjonsrens',
+        price: data.price || 0,
+        scheduledAt: data.scheduledAt,
+        customerEmail: data.email,
+      });
+
+      const recipients = [NOTIFY_EMAIL, data.email].filter(Boolean) as string[];
+
+      resend.emails.send({
+        from: `Godt Vedlikehold <${fromEmail}>`,
+        to: recipients,
+        subject: `Bestillingsbekreftelse – ${data.customerName}`,
+        html: confirmationHtml,
+      }).then(({ error }) => {
+        if (error) console.error('Resend email error:', JSON.stringify(error));
+      }).catch((err) => {
+        console.error('Email notification exception:', err);
+      });
+    } catch (emailErr) {
+      console.error('Order confirmation email exception:', emailErr);
+    }
 
     return NextResponse.json({ workOrder }, { status: 201 });
   } catch (error: any) {
