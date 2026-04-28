@@ -9,6 +9,8 @@ interface OrderConfirmationData {
   customerEmail?: string;
 }
 
+const DEFAULT_PRICE = 4990;
+
 export function generateOrderConfirmationHtml(data: OrderConfirmationData): string {
   const schedDate = new Date(data.scheduledAt);
   const dateStr = schedDate.toLocaleDateString('nb-NO', {
@@ -30,7 +32,12 @@ export function generateOrderConfirmationHtml(data: OrderConfirmationData): stri
     .filter(Boolean)
     .join(', ');
 
-  const priceFormatted = 'kr ' + data.price.toLocaleString('nb-NO') + ',-';
+  // Capitalize product name
+  const productName = data.product.charAt(0).toUpperCase() + data.product.slice(1);
+
+  // Use default price if 0
+  const price = data.price > 0 ? data.price : DEFAULT_PRICE;
+  const priceFormatted = 'kr ' + price.toLocaleString('nb-NO') + ',- inkl. mva';
 
   return `<!DOCTYPE html>
 <html lang="no">
@@ -60,7 +67,7 @@ export function generateOrderConfirmationHtml(data: OrderConfirmationData): stri
         <table style="width: 100%; border-collapse: collapse;">
           <tr>
             <td style="padding: 6px 0; font-size: 14px; color: #64748b; width: 120px;">Produkt:</td>
-            <td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${data.product}</td>
+            <td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${productName}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; font-size: 14px; color: #64748b;">Pris:</td>
