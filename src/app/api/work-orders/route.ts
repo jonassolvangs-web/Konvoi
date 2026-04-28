@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { Resend } from 'resend';
 import { requireAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { defaultChecklist } from '@/lib/constants';
+import { generateOrderConfirmationHtml } from '@/lib/order-confirmation-email';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || 'hei@godtvedlikehold.no';
+const NOTIFY_EMAIL = 'hei@godtvedlikehold.no';
 
 const createWorkOrderSchema = z.object({
   organizationId: z.string(),
@@ -231,6 +237,47 @@ export async function POST(req: NextRequest) {
 
       return wo;
     });
+
+    // Send order confirmation emails (non-blocking)
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { address: true, postalCode: true, city: true },
+      });
+
+      const unitsWithCustomer = await prisma.dwellingUnit.findMany({
+        where: { id: { in: units.map((u: any) => u.id) } },
+        select: { residentName: true, residentEmail: true, product: true, price: true },
+      });
+
+      for (const unit of unitsWithCustomer) {
+        const confirmationHtml = generateOrderConfirmationHtml({
+          customerName: unit.residentName || org?.address || 'Kunde',
+          address: org?.address || '',
+          postalCode: org?.postalCode || undefined,
+          city: org?.city || undefined,
+          product: unit.product || 'Ventilasjonsrens',
+          price: unit.price || 0,
+          scheduledAt,
+          customerEmail: unit.residentEmail || undefined,
+        });
+
+        const recipients = [NOTIFY_EMAIL, unit.residentEmail].filter(Boolean) as string[];
+
+        resend.emails.send({
+          from: `Godt Vedlikehold <${fromEmail}>`,
+          to: recipients,
+          subject: `Bestillingsbekreftelse – ${unit.residentName || org?.address || 'Ny bestilling'}`,
+          html: confirmationHtml,
+        }).then(({ error }) => {
+          if (error) console.error('Resend email error:', JSON.stringify(error));
+        }).catch((err) => {
+          console.error('Email notification exception:', err);
+        });
+      }
+    } catch (emailErr) {
+      console.error('Order confirmation email exception:', emailErr);
+    }
 
     return NextResponse.json({ workOrder }, { status: 201 });
   } catch (error: any) {

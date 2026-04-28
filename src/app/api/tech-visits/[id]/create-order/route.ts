@@ -4,6 +4,7 @@ import { Resend } from 'resend';
 import { requireAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { defaultChecklist } from '@/lib/constants';
+import { generateOrderConfirmationHtml } from '@/lib/order-confirmation-email';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || 'hei@godtvedlikehold.no';
@@ -130,37 +131,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return workOrder;
     });
 
-    // Send email notification (non-blocking)
-    const techUser = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
-    const schedDate = new Date(scheduledAt);
-    const dateStr = schedDate.toLocaleDateString('nb-NO', { timeZone: 'Europe/Oslo', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const timeStr = schedDate.toLocaleTimeString('nb-NO', { timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit' });
-
+    // Send order confirmation email (non-blocking)
     try {
+      const confirmationHtml = generateOrderConfirmationHtml({
+        customerName: visit.ownerName || visit.residentName || visit.address,
+        address: visit.address,
+        postalCode: visit.postalCode || undefined,
+        city: visit.city || undefined,
+        product: product || orderType || 'Ventilasjonsrens',
+        price,
+        scheduledAt,
+        customerEmail: visit.ownerEmail || undefined,
+      });
+
+      const recipients = [NOTIFY_EMAIL, visit.ownerEmail].filter(Boolean) as string[];
+
       const { data: emailData, error: emailError } = await resend.emails.send({
         from: `Godt Vedlikehold <${fromEmail}>`,
-        to: NOTIFY_EMAIL,
-        subject: `Ny bestilling – ${visit.ownerName || visit.address}`,
-        html: `
-          <h2>Ny bestilling fra besøk</h2>
-          <table style="border-collapse:collapse;font-family:sans-serif;">
-            <tr><td style="padding:4px 12px 4px 0;color:#666;">Tekniker</td><td style="padding:4px 0;font-weight:600;">${techUser?.name || 'Ukjent'}</td></tr>
-            <tr><td style="padding:4px 12px 4px 0;color:#666;">Eier</td><td style="padding:4px 0;font-weight:600;">${visit.ownerName || '–'}</td></tr>
-            <tr><td style="padding:4px 12px 4px 0;color:#666;">Adresse</td><td style="padding:4px 0;font-weight:600;">${visit.address}${visit.postalCode ? `, ${visit.postalCode}` : ''}${visit.city ? ` ${visit.city}` : ''}</td></tr>
-            <tr><td style="padding:4px 12px 4px 0;color:#666;">Leilighet</td><td style="padding:4px 0;font-weight:600;">${visit.unitNumber}</td></tr>
-            ${visit.ownerPhone ? `<tr><td style="padding:4px 12px 4px 0;color:#666;">Telefon</td><td style="padding:4px 0;font-weight:600;">${visit.ownerPhone}</td></tr>` : ''}
-            ${visit.ownerEmail ? `<tr><td style="padding:4px 12px 4px 0;color:#666;">E-post</td><td style="padding:4px 0;font-weight:600;">${visit.ownerEmail}</td></tr>` : ''}
-            ${visit.residentName ? `<tr><td style="padding:4px 12px 4px 0;color:#666;">Beboer</td><td style="padding:4px 0;font-weight:600;">${visit.residentName}</td></tr>` : ''}
-            <tr><td style="padding:4px 12px 4px 0;color:#666;">Dato</td><td style="padding:4px 0;font-weight:600;">${dateStr}</td></tr>
-            <tr><td style="padding:4px 12px 4px 0;color:#666;">Tid</td><td style="padding:4px 0;font-weight:600;">${timeStr}</td></tr>
-            ${visit.notes ? `<tr><td style="padding:4px 12px 4px 0;color:#666;">Notat</td><td style="padding:4px 0;">${visit.notes}</td></tr>` : ''}
-          </table>
-        `,
+        to: recipients,
+        subject: `Bestillingsbekreftelse – ${visit.ownerName || visit.address}`,
+        html: confirmationHtml,
       });
       if (emailError) {
         console.error('Resend email error:', JSON.stringify(emailError));
       } else {
-        console.log('Email notification sent:', emailData?.id);
+        console.log('Order confirmation email sent:', emailData?.id);
       }
     } catch (emailErr) {
       console.error('Email notification exception:', emailErr);
