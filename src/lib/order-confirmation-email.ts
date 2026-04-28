@@ -10,135 +10,119 @@ interface OrderConfirmationData {
 }
 
 export function generateOrderConfirmationHtml(data: OrderConfirmationData): string {
-  const darkBlue = '#1e2a3a';
-  const accentBlue = '#3B82F6';
-
   const schedDate = new Date(data.scheduledAt);
   const dateStr = schedDate.toLocaleDateString('nb-NO', {
+    timeZone: 'Europe/Oslo',
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   });
   const timeStr = schedDate.toLocaleTimeString('nb-NO', {
+    timeZone: 'Europe/Oslo',
     hour: '2-digit',
     minute: '2-digit',
   });
+  // Capitalize first letter of weekday
+  const dateTimeStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1) + ' kl. ' + timeStr;
 
   const fullAddress = [data.address, data.postalCode, data.city]
     .filter(Boolean)
     .join(', ');
 
-  const priceFormatted = data.price.toLocaleString('nb-NO');
+  const priceFormatted = 'kr ' + data.price.toLocaleString('nb-NO') + ',-';
 
   return `<!DOCTYPE html>
 <html lang="no">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:20px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+<head><meta charset="UTF-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 0; color: #111; background: #f5f5f5;">
+  <div style="background: #ffffff; border-radius: 8px; overflow: hidden; margin: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
 
-        <!-- Header -->
-        <tr>
-          <td style="background:${darkBlue};padding:28px 32px;text-align:center;">
-            <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;letter-spacing:0.5px;">Godt Vedlikehold</h1>
-          </td>
-        </tr>
+    <!-- Header -->
+    <div style="background: #1e2a3a; padding: 24px 32px;">
+      <h1 style="margin: 0; font-size: 20px; color: white; font-weight: 600;">Godt Vedlikehold</h1>
+      <p style="margin: 4px 0 0; font-size: 12px; color: #94a3b8; font-style: italic;">Bedre inneklima, renere luft</p>
+    </div>
 
-        <!-- Body -->
-        <tr>
-          <td style="padding:32px;">
+    <!-- Content -->
+    <div style="padding: 32px;">
 
-            <!-- Greeting -->
-            <p style="margin:0 0 20px;font-size:16px;">Hei ${data.customerName},</p>
-            <p style="margin:0 0 24px;font-size:15px;color:#333;line-height:1.6;">
-              Takk for din bestilling! Her er en bekreftelse p&aring; det som er avtalt.
-            </p>
+      <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px;">Hei ${data.customerName},</p>
 
-            <!-- Order details box -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:28px;">
-              <tr>
-                <td style="padding:20px 24px;">
-                  <h2 style="margin:0 0 16px;font-size:16px;font-weight:700;color:${darkBlue};">Din bestilling</h2>
-                  <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;">
-                    <tr>
-                      <td style="padding:6px 0;color:#666;width:110px;">Tjeneste</td>
-                      <td style="padding:6px 0;font-weight:600;">${data.product}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding:6px 0;color:#666;">Pris</td>
-                      <td style="padding:6px 0;font-weight:600;">${priceFormatted} kr inkl. mva</td>
-                    </tr>
-                    <tr>
-                      <td style="padding:6px 0;color:#666;">Adresse</td>
-                      <td style="padding:6px 0;font-weight:600;">${fullAddress}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding:6px 0;color:#666;">Dato</td>
-                      <td style="padding:6px 0;font-weight:600;">${dateStr}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding:6px 0;color:#666;">Tidspunkt</td>
-                      <td style="padding:6px 0;font-weight:600;">${timeStr}</td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
+      <p style="font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+        Takk for din bestilling! Her er en bekreftelse p&aring; hva som er avtalt.
+      </p>
 
-            <!-- What's included -->
-            <h3 style="margin:0 0 12px;font-size:15px;font-weight:700;color:${darkBlue};">Dette inng&aring;r i tjenesten</h3>
-            <ul style="margin:0 0 28px;padding-left:20px;font-size:14px;line-height:1.8;color:#333;">
-              <li>Rensing av alle kanaler fra ventil til koblingspunkt</li>
-              <li>Rensing og kontroll av ventiler</li>
-              <li>Rapport med bilder (f&oslash;r og etter)</li>
-            </ul>
+      <!-- Order details -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+        <h2 style="margin: 0 0 16px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #1e2a3a;">Bestilling</h2>
 
-            <!-- Angrerett box -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin-bottom:28px;">
-              <tr>
-                <td style="padding:18px 24px;">
-                  <h3 style="margin:0 0 8px;font-size:14px;font-weight:700;color:${accentBlue};">Angrerett</h3>
-                  <p style="margin:0;font-size:13px;color:#1e40af;line-height:1.6;">
-                    Du har 14 dagers angrerett i henhold til angrerettloven. Dersom du &oslash;nsker &aring; benytte deg av angreretten, ta kontakt med oss p&aring;
-                    <a href="mailto:hei@godtvedlikehold.no" style="color:${accentBlue};">hei@godtvedlikehold.no</a>.
-                  </p>
-                </td>
-              </tr>
-            </table>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; font-size: 14px; color: #64748b; width: 120px;">Produkt:</td>
+            <td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${data.product}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-size: 14px; color: #64748b;">Pris:</td>
+            <td style="padding: 6px 0; font-size: 14px; font-weight: 600;">${priceFormatted}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-size: 14px; color: #64748b;">Adresse:</td>
+            <td style="padding: 6px 0; font-size: 14px;">${fullAddress}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-size: 14px; color: #64748b;">Dato:</td>
+            <td style="padding: 6px 0; font-size: 14px;">${dateTimeStr}</td>
+          </tr>
+        </table>
+      </div>
 
-            <!-- Forbehold -->
-            <h3 style="margin:0 0 12px;font-size:15px;font-weight:700;color:${darkBlue};">Forbehold</h3>
-            <ul style="margin:0 0 28px;padding-left:20px;font-size:13px;line-height:1.8;color:#555;">
-              <li>Kjøkkenventilator med kullfilter er ikke en del av ventilasjonsanlegget. Vi anbefaler filterbytte hvert &aring;r.</li>
-              <li>Dersom det er forhold knyttet til sikring eller el-anlegg som hindrer utf&oslash;relse, forbeholder vi oss retten til &aring; avbryte oppdraget.</li>
-              <li>Vi lagrer kontaktinformasjon for &aring; kunne sende rapport og eventuelt p&aring;minnelse om neste rens.</li>
-            </ul>
+      <!-- What's included -->
+      <div style="margin-bottom: 24px;">
+        <h2 style="margin: 0 0 12px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #1e2a3a;">Dette inng&aring;r</h2>
+        <ul style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 2; color: #334155;">
+          <li>Rengj&oslash;ring av kanaler &ndash; kanalsystemet renses grundig fra ventil til koblingspunkt</li>
+          <li>Rengj&oslash;ring av ventiler</li>
+          <li>Rapport med f&oslash;r- og etterbilder</li>
+        </ul>
+      </div>
 
-            <!-- Signature -->
-            <p style="margin:0;font-size:15px;">Med vennlig hilsen,</p>
-            <p style="margin:4px 0 0;font-size:15px;font-weight:600;">Godt Vedlikehold</p>
-            <p style="margin:4px 0 0;font-size:13px;color:#555;">
-              <a href="mailto:hei@godtvedlikehold.no" style="color:${accentBlue};text-decoration:none;">hei@godtvedlikehold.no</a>
-            </p>
+      <!-- Angrerett -->
+      <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+        <p style="margin: 0; font-size: 13px; color: #0369a1; line-height: 1.6;">
+          <strong>Angrerett:</strong> Du har 14 dagers angrerett i henhold til angrerettloven. Ta kontakt med oss dersom du &oslash;nsker &aring; benytte deg av denne.
+        </p>
+      </div>
 
-          </td>
-        </tr>
+      <!-- Forbehold -->
+      <div style="margin-bottom: 24px;">
+        <h2 style="margin: 0 0 12px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #1e2a3a;">Forbehold</h2>
+        <ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.8; color: #64748b;">
+          <li style="margin-bottom: 8px;">Kj&oslash;kkenventilator og tilh&oslash;rende kanal inng&aring;r ikke i rensen. Fett fra kj&oslash;kkenventilatoren setter seg som en hinne i kanalen, men dette p&aring;virker ikke anleggets kapasitet. Rengj&oslash;ring av dette krever en egen spesialprosess. Den beste forebyggingen er &aring; rengj&oslash;re fettfiltrene i kj&oslash;kkenventilatoren jevnlig.</li>
+          <li style="margin-bottom: 8px;">Ved arbeid p&aring; ventilasjonsanlegget skrus sikringen av. Godt Vedlikehold er ikke ansvarlig for skade p&aring; komponenter som skyldes gammelt eller defekt elektrisk anlegg.</li>
+          <li>Vi lagrer kontaktinformasjonen din for oppf&oslash;lging av filteravtaler og anbefaling om fremtidig rens.</li>
+        </ul>
+      </div>
 
-        <!-- Footer -->
-        <tr>
-          <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px;text-align:center;">
-            <p style="margin:0;font-size:12px;color:#94a3b8;">
-              Godt Vedlikehold AS &middot;
-              <a href="https://www.godtvedlikehold.no" style="color:${accentBlue};text-decoration:none;">www.godtvedlikehold.no</a>
-            </p>
-          </td>
-        </tr>
+      <!-- Contact -->
+      <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 8px;">
+        Har du sp&oslash;rsm&aring;l? Ta gjerne kontakt med oss.
+      </p>
 
-      </table>
-    </td></tr>
-  </table>
+      <br>
+      <p style="margin: 0; font-size: 14px;">Med vennlig hilsen,</p>
+      <p style="margin: 4px 0 0; font-size: 14px; font-weight: 600;">Godt Vedlikehold</p>
+      <p style="margin: 4px 0 0; font-size: 13px; color: #64748b;">
+        <a href="mailto:hei@godtvedlikehold.no" style="color: #3B82F6; text-decoration: none;">hei@godtvedlikehold.no</a>
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding: 16px 32px; border-top: 1px solid #e2e8f0; text-align: center;">
+      <p style="margin: 0; font-size: 11px; color: #94a3b8;">Godt Vedlikehold &mdash; Bedre inneklima, renere luft</p>
+    </div>
+
+  </div>
 </body>
 </html>`;
 }
