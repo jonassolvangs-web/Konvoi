@@ -120,7 +120,8 @@ export function generateOrderConfirmationHtml(data: OrderConfirmationData): stri
       <p style="margin: 0; font-size: 14px;">Med vennlig hilsen,</p>
       <p style="margin: 4px 0 0; font-size: 14px; font-weight: 600;">Godt Vedlikehold</p>
       <p style="margin: 4px 0 0; font-size: 13px; color: #64748b;">
-        <a href="mailto:hei@godtvedlikehold.no" style="color: #3B82F6; text-decoration: none;">hei@godtvedlikehold.no</a>
+        <a href="mailto:hei@godtvedlikehold.no" style="color: #3B82F6; text-decoration: none;">hei@godtvedlikehold.no</a><br>
+        <a href="tel:93672506" style="color: #3B82F6; text-decoration: none;">936 72 506</a>
       </p>
     </div>
 
