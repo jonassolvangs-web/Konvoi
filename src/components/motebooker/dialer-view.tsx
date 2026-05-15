@@ -70,6 +70,7 @@ export default function DialerView({ organizations, feltselgere, stats, onCallLo
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
+  const [emailCopied, setEmailCopied] = useState(false);
 
   // Notes
   const [showNotesModal, setShowNotesModal] = useState(false);
@@ -208,7 +209,7 @@ export default function DialerView({ organizations, feltselgere, stats, onCallLo
 
   // ── SMS ──
   const openSmsModal = () => {
-    setSmsText(`Hei, dette er fra Turbo. Vi kontakter deg angående ventilasjonsrens for ${org.name}. Vennligst ta kontakt for å avtale tidspunkt.`);
+    setSmsText(`Hei, Jonas fra Turbo som prøvde å ringe. Ringte angående "${org.name}" Gjelder Ventilasjonsrens. Ring meg gjerne opp når du har mulighet`);
     setShowSmsModal(true);
   };
   const handleSendSms = () => {
@@ -220,9 +221,37 @@ export default function DialerView({ organizations, feltselgere, stats, onCallLo
 
   // ── Email ──
   const openEmailModal = () => {
-    setEmailSubject(`Ventilasjonsrens - ${org.name}`);
-    setEmailBody(`Hei,\n\nVi tar kontakt angående ventilasjonsrens for ${org.name} (${org.address}).\n\nVi tilbyr profesjonell ventilasjonsrens og ønsker å avtale et tidspunkt for befaring.\n\nVennlig hilsen\nTurbo`);
+    setEmailSubject(`Ventilasjonsrens — ${org.name}`);
+    setEmailBody(`Hei,
+
+Vi tar kontakt angående ventilasjonsrens for ${org.name}.
+
+Vi ønsker å tilby en befaring for å kartlegge ventilasjonsanlegget i borettslaget. Befaringen er uforpliktende og gratis.
+
+Pris for ventilasjonsrens: kr 4 990,- per leilighet (inkl. mva).
+
+Hva inngår:
+- Fullstendig rens av alle ventilasjonskanaler
+- Rens av avtrekksventiler
+- Sjekk og justering av luftmengder
+- Dokumentasjon og rapport etter utført arbeid
+
+Hvorfor rense ventilasjonen?
+Over tid samler det seg støv, fett og forurensninger i ventilasjonskanalene. Dette kan føre til dårlig inneklima, økt energiforbruk og i verste fall brannfare. Regelmessig rens sikrer godt inneklima og forlenger levetiden på anlegget.
+
+Ta gjerne kontakt for å avtale befaring eller om du har spørsmål.
+
+Med vennlig hilsen
+Jonas Anker Solvang
+Turbo
+Tlf: 902 07 705`);
+    setEmailCopied(false);
     setShowEmailModal(true);
+  };
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText(`Emne: ${emailSubject}\n\n${emailBody}`);
+    setEmailCopied(true);
+    setTimeout(() => setEmailCopied(false), 1500);
   };
   const handleSendEmail = async () => {
     if (!org.chairmanEmail) { toast.error('Ingen e-post'); return; }
@@ -539,22 +568,22 @@ export default function DialerView({ organizations, feltselgere, stats, onCallLo
         </div>
       </Modal>
 
-      {/* ── Email modal ── */}
-      <Modal isOpen={showEmailModal} onClose={() => setShowEmailModal(false)} title="Send e-post">
+      {/* ── Email preview modal ── */}
+      <Modal isOpen={showEmailModal} onClose={() => setShowEmailModal(false)} title={`Mail-mal — ${org.name}`}>
         <div className="space-y-4">
-          <div>
-            <label className="label">Til</label>
-            <p className="text-sm text-gray-700">{org.chairmanEmail || 'Ingen e-post'}</p>
+          <div className="bg-gray-100 rounded-xl px-3 py-2">
+            <p className="text-xs text-gray-500 mb-0.5">Emne</p>
+            <p className="text-sm font-medium text-gray-800">{emailSubject}</p>
           </div>
-          <div>
-            <label className="label">Emne</label>
-            <input type="text" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} className="input-field w-full" />
+          <div className="bg-gray-50 rounded-xl px-3 py-3 max-h-72 overflow-y-auto">
+            <p className="text-sm text-gray-800 whitespace-pre-line">{emailBody}</p>
           </div>
-          <div>
-            <label className="label">Melding</label>
-            <textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} rows={6} className="input-field w-full resize-none" />
+          <div className="flex gap-3">
+            <Button fullWidth variant="secondary" onClick={handleCopyEmail}>
+              {emailCopied ? 'Kopiert!' : 'Kopier tekst'}
+            </Button>
+            <Button fullWidth onClick={handleSendEmail}>Åpne i epost</Button>
           </div>
-          <Button fullWidth onClick={handleSendEmail}>Send e-post</Button>
         </div>
       </Modal>
 

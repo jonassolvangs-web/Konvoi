@@ -81,6 +81,11 @@ export default function KartPage() {
   // Email state
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
+  const [emailCopied, setEmailCopied] = useState(false);
+
+  // Map filter state
+  const [buildYearFilter, setBuildYearFilter] = useState('alle');
+  const [unitsFilter, setUnitsFilter] = useState('alle');
 
   // Notes state
   const [noteText, setNoteText] = useState('');
@@ -328,7 +333,7 @@ export default function KartPage() {
   const openSmsModal = async () => {
     if (selectedOrg) {
       setSmsText(
-        `Hei, dette er fra Turbo. Vi kontakter deg angående ventilasjonsrens for ${selectedOrg.name}. Vennligst ta kontakt for å avtale tidspunkt.`
+        `Hei, Jonas fra Turbo som prøvde å ringe. Ringte angående "${selectedOrg.name}" Gjelder Ventilasjonsrens. Ring meg gjerne opp når du har mulighet`
       );
     }
     // Fetch SMS templates
@@ -356,12 +361,41 @@ export default function KartPage() {
   // ── Email ──
   const openEmailModal = () => {
     if (selectedOrg) {
-      setEmailSubject(`Ventilasjonsrens - ${selectedOrg.name}`);
+      setEmailSubject(`Ventilasjonsrens — ${selectedOrg.name}`);
       setEmailBody(
-        `Hei,\n\nVi tar kontakt angående ventilasjonsrens for ${selectedOrg.name} (${selectedOrg.address}).\n\nVi tilbyr profesjonell ventilasjonsrens og ønsker å avtale et tidspunkt for befaring.\n\nVennlig hilsen\nTurbo`
+        `Hei,
+
+Vi tar kontakt angående ventilasjonsrens for ${selectedOrg.name}.
+
+Vi ønsker å tilby en befaring for å kartlegge ventilasjonsanlegget i borettslaget. Befaringen er uforpliktende og gratis.
+
+Pris for ventilasjonsrens: kr 4 990,- per leilighet (inkl. mva).
+
+Hva inngår:
+- Fullstendig rens av alle ventilasjonskanaler
+- Rens av avtrekksventiler
+- Sjekk og justering av luftmengder
+- Dokumentasjon og rapport etter utført arbeid
+
+Hvorfor rense ventilasjonen?
+Over tid samler det seg støv, fett og forurensninger i ventilasjonskanalene. Dette kan føre til dårlig inneklima, økt energiforbruk og i verste fall brannfare. Regelmessig rens sikrer godt inneklima og forlenger levetiden på anlegget.
+
+Ta gjerne kontakt for å avtale befaring eller om du har spørsmål.
+
+Med vennlig hilsen
+Jonas Anker Solvang
+Turbo
+Tlf: 902 07 705`
       );
     }
+    setEmailCopied(false);
     setShowEmailModal(true);
+  };
+
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText(`Emne: ${emailSubject}\n\n${emailBody}`);
+    setEmailCopied(true);
+    setTimeout(() => setEmailCopied(false), 1500);
   };
 
   const handleSendEmail = async () => {
@@ -628,6 +662,10 @@ export default function KartPage() {
             statusFilter={statusFilter}
             onSelectOrg={(org: any) => handleSelectOrg(org)}
             orgMarkerTypes={orgMarkerTypes}
+            buildYearFilter={buildYearFilter}
+            unitsFilter={unitsFilter}
+            onBuildYearFilterChange={setBuildYearFilter}
+            onUnitsFilterChange={setUnitsFilter}
           />
         ) : (
           <DialerView
@@ -782,34 +820,28 @@ export default function KartPage() {
         </div>
       </Modal>
 
-      {/* ── Email modal ── */}
-      <Modal isOpen={showEmailModal} onClose={() => setShowEmailModal(false)} title="Send e-post">
+      {/* ── Email preview modal ── */}
+      <Modal isOpen={showEmailModal} onClose={() => setShowEmailModal(false)} title={`Mail-mal — ${selectedOrg?.name || ''}`}>
         <div className="space-y-4">
-          <div>
-            <label className="label">Til</label>
-            <p className="text-sm text-gray-700">{selectedOrg?.chairmanEmail || 'Ingen e-post'}</p>
+          <div className="bg-gray-100 rounded-xl px-3 py-2">
+            <p className="text-xs text-gray-500 mb-0.5">Emne</p>
+            <p className="text-sm font-medium text-gray-800">{emailSubject}</p>
           </div>
-          <div>
-            <label className="label">Emne</label>
-            <input
-              type="text"
-              value={emailSubject}
-              onChange={(e) => setEmailSubject(e.target.value)}
-              className="input-field w-full"
-            />
+          <div className="bg-gray-50 rounded-xl px-3 py-3 max-h-72 overflow-y-auto">
+            <p className="text-sm text-gray-800 whitespace-pre-line">{emailBody}</p>
           </div>
-          <div>
-            <label className="label">Melding</label>
-            <textarea
-              value={emailBody}
-              onChange={(e) => setEmailBody(e.target.value)}
-              rows={6}
-              className="input-field w-full resize-none"
-            />
+          <div className="flex gap-3">
+            <Button
+              fullWidth
+              variant="secondary"
+              onClick={handleCopyEmail}
+            >
+              {emailCopied ? 'Kopiert!' : 'Kopier tekst'}
+            </Button>
+            <Button fullWidth onClick={handleSendEmail}>
+              Åpne i epost
+            </Button>
           </div>
-          <Button fullWidth onClick={handleSendEmail}>
-            Send e-post
-          </Button>
         </div>
       </Modal>
 
