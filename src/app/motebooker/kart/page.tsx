@@ -1171,6 +1171,7 @@ Ventilasjonskonsulent
               onChange={(e) => setSmsText(e.target.value)}
               rows={4}
               className="input-field w-full resize-none"
+              style={{ fontSize: 16 }}
             />
           </div>
           <Button fullWidth onClick={handleSendSms}>
@@ -1262,6 +1263,7 @@ Ventilasjonskonsulent
               rows={2}
               placeholder="F.eks. gammel ventilasjon, snakket med på døra..."
               className="input-field w-full resize-none"
+              style={{ fontSize: 16 }}
             />
           </div>
           <Button
@@ -1322,6 +1324,7 @@ Ventilasjonskonsulent
               rows={2}
               placeholder="F.eks. tilgang via bakdør, ring først..."
               className="input-field w-full resize-none"
+              style={{ fontSize: 16 }}
             />
           </div>
 
