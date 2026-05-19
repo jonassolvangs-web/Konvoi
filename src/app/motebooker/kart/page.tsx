@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { format, addDays } from 'date-fns';
 import { nb } from 'date-fns/locale';
 import ToggleTabs from '@/components/ui/toggle-tabs';
-import FilterChips from '@/components/ui/filter-chips';
 import DialerView from '@/components/motebooker/dialer-view';
 import OrgBottomSheet from '@/components/motebooker/org-bottom-sheet';
 import Modal from '@/components/ui/modal';
@@ -13,8 +12,9 @@ import Button from '@/components/ui/button';
 import Input from '@/components/ui/input';
 import AvailableSlotPicker from '@/components/ui/available-slot-picker';
 import LoadingSpinner from '@/components/ui/loading-spinner';
-import { PlusCircle } from 'lucide-react';
-import { cn, orgStatusConfig } from '@/lib/utils';
+import { PlusCircle, Phone, Mail } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { PIPELINE_STAGES, computePipelineStage } from '@/lib/pipeline';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 
@@ -38,25 +38,39 @@ interface Organization {
   notes: string | null;
 }
 
+interface CallRecord {
+  id: string;
+  organizationId: string;
+  result: string;
+  notes: string | null;
+  createdAt: string;
+  callbackAt: string | null;
+}
+
+interface PipelineOrg extends Organization {
+  pipelineStage: string;
+  latestCallResult: string | null;
+  latestCallNotes: string | null;
+  latestCallDate: string | null;
+}
+
 
 export default function KartPage() {
   const { data: session } = useSession();
   const userId = (session?.user as any)?.id;
   const [view, setView] = useState('kart');
-  const [statusFilter, setStatusFilter] = useState('alle');
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [activeStep, setActiveStep] = useState('ikke_ringt');
+  const [organizations, setOrganizations] = useState<PipelineOrg[]>([]);
   const [feltselgere, setFeltselgere] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [selectedOrg, setSelectedOrg] = useState<PipelineOrg | null>(null);
   const [stats, setStats] = useState({ ringt: 0, naadd: 0, booket: 0, ikkeSvar: 0 });
   const [orgMarkerTypes, setOrgMarkerTypes] = useState<Record<string, string>>({});
-  const [filterCounts, setFilterCounts] = useState<Record<string, number>>({});
 
   // Modal states
   const [showBookMeeting, setShowBookMeeting] = useState(false);
   const [showSmsModal, setShowSmsModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const [showNotesModal, setShowNotesModal] = useState(false);
   const [showCallbackPicker, setShowCallbackPicker] = useState(false);
 
   // Work order states
@@ -87,13 +101,22 @@ export default function KartPage() {
   const [buildYearFilter, setBuildYearFilter] = useState('alle');
   const [unitsFilter, setUnitsFilter] = useState('alle');
 
-  // Notes state
+  // Inline notes state
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
-  const [notes, setNotes] = useState<{ id: string; notes: string; createdAt: string; result: string }[]>([]);
   const [savingNote, setSavingNote] = useState(false);
 
+  // Inline org edit state
+  const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
+  const [editFields, setEditFields] = useState({ name: '', chairmanName: '', chairmanPhone: '', chairmanEmail: '' });
+  const [savingOrg, setSavingOrg] = useState(false);
+
   // Callback state
-  const [callbackDate, setCallbackDate] = useState('');
+  const [callbackDay, setCallbackDay] = useState('');
+  const [callbackTime, setCallbackTime] = useState('');
+  const [callbackMethod, setCallbackMethod] = useState<'ring' | 'mail'>('ring');
+  const [callbackEmailSubject, setCallbackEmailSubject] = useState('');
+  const [callbackEmailBody, setCallbackEmailBody] = useState('');
 
   const [loggingResult, setLoggingResult] = useState(false);
 
@@ -112,6 +135,9 @@ export default function KartPage() {
   const [manualNote, setManualNote] = useState('');
   const [addingAddress, setAddingAddress] = useState(false);
 
+  // Swipe gesture for pipeline steps
+  const touchStartX = useRef(0);
+
   const fetchData = useCallback(async () => {
     if (!userId) return;
     try {
@@ -128,10 +154,11 @@ export default function KartPage() {
 
       setFeltselgere((userData.users || []).map((u: any) => ({ id: u.id, name: u.name })));
       setTeknikere((techData.users || []).map((u: any) => ({ id: u.id, name: u.name })));
-      const orgs = orgData.organizations || [];
-      setOrganizations(orgs);
 
-      const calls = callData.calls || [];
+      const orgs: Organization[] = orgData.organizations || [];
+      const calls: CallRecord[] = callData.calls || [];
+
+      // Stats
       setStats({
         ringt: calls.length,
         naadd: calls.filter((c: any) => c.result !== 'ikke_svar').length,
@@ -139,51 +166,36 @@ export default function KartPage() {
         ikkeSvar: calls.filter((c: any) => c.result === 'ikke_svar').length,
       });
 
-      // Build marker types from latest call per org
-      const callResultMap: Record<string, string> = {
-        ikke_svar: 'ingen_svar',
-        ring_tilbake: 'callback',
-        mail_sendt: 'mail_sendt',
-        mote_booket: 'mote_booket',
-        nei: 'nei',
-      };
-
-      const latestCallPerOrg: Record<string, string> = {};
-      // calls are ordered desc by createdAt, so first occurrence per org is the latest
+      // Build latest call per org (calls are ordered desc by createdAt)
+      const latestCallPerOrg: Record<string, CallRecord> = {};
       for (const call of calls) {
         if (!latestCallPerOrg[call.organizationId]) {
-          latestCallPerOrg[call.organizationId] = callResultMap[call.result] || 'ikke_kontaktet';
+          latestCallPerOrg[call.organizationId] = call;
         }
       }
 
-      // TODO: track mail_sendt separately if needed
+      // Compute pipeline stage per org
+      const pipelineOrgs: PipelineOrg[] = orgs.map((org) => {
+        const latestCall = latestCallPerOrg[org.id] || null;
+        const hasFeltselger = !!org.assignedToId && org.assignedToId !== userId;
+        const stage = computePipelineStage(latestCall?.result || null, hasFeltselger);
+        return {
+          ...org,
+          pipelineStage: stage,
+          latestCallResult: latestCall?.result || null,
+          latestCallNotes: latestCall?.notes || null,
+          latestCallDate: latestCall?.createdAt || null,
+        };
+      });
+
+      setOrganizations(pipelineOrgs);
+
+      // Build marker types for map (pipeline stage per org)
       const markers: Record<string, string> = {};
-      const counts: Record<string, number> = {
-        ingen_svar: 0,
-        callback: 0,
-        mail_sendt: 0,
-        mote_booket: 0,
-        nei: 0,
-        ikke_kontaktet: 0,
-        venter_tekniker: 0,
-        rens_pagaar: 0,
-        fullfort: 0,
-      };
-
-      for (const org of orgs) {
-        // Org status takes priority for later stages
-        if (org.status === 'besok_pagaar') { markers[org.id] = 'besok_pagaar'; counts['venter_tekniker']++; continue; }
-        if (org.status === 'venter_tekniker') { markers[org.id] = 'venter_tekniker'; counts['venter_tekniker']++; continue; }
-        if (org.status === 'rens_pagaar') { markers[org.id] = 'rens_pagaar'; counts['rens_pagaar']++; continue; }
-        if (org.status === 'fullfort') { markers[org.id] = 'fullfort'; counts['fullfort']++; continue; }
-
-        const markerType = latestCallPerOrg[org.id] || 'ikke_kontaktet';
-        markers[org.id] = markerType;
-        if (counts[markerType] !== undefined) counts[markerType]++;
+      for (const org of pipelineOrgs) {
+        markers[org.id] = org.pipelineStage;
       }
-
       setOrgMarkerTypes(markers);
-      setFilterCounts(counts);
     } catch {
       // ignore
     } finally {
@@ -195,29 +207,56 @@ export default function KartPage() {
     fetchData();
   }, [fetchData]);
 
-  // Fetch notes for selected org
-  const fetchNotes = useCallback(async (orgId: string) => {
-    try {
-      const res = await fetch(`/api/calls?organizationId=${orgId}`);
-      const data = await res.json();
-      setNotes((data.calls || []).filter((c: any) => c.notes));
-    } catch {
-      setNotes([]);
-    }
-  }, []);
+  // Swipe gestures for mobile (step navigation)
+  useEffect(() => {
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX.current = e.touches[0].clientX;
+    };
+    const handleTouchEnd = (e: TouchEvent) => {
+      const diff = e.changedTouches[0].clientX - touchStartX.current;
+      const idx = PIPELINE_STAGES.findIndex((s) => s.key === activeStep);
+      if (Math.abs(diff) > 80) {
+        if (diff < 0 && idx < PIPELINE_STAGES.length - 1) setActiveStep(PIPELINE_STAGES[idx + 1].key);
+        if (diff > 0 && idx > 0) setActiveStep(PIPELINE_STAGES[idx - 1].key);
+      }
+    };
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [activeStep]);
+
+  // Stage counts
+  const stageCounts: Record<string, number> = {};
+  PIPELINE_STAGES.forEach((s) => {
+    stageCounts[s.key] = organizations.filter((o) => o.pipelineStage === s.key).length;
+  });
+
+  const activeIdx = PIPELINE_STAGES.findIndex((s) => s.key === activeStep);
+  const activeStage = PIPELINE_STAGES[activeIdx];
+
+  // Filter orgs for map by active pipeline step
+  const mapOrgs = organizations.filter((o) => o.pipelineStage === activeStep);
 
   const handleSelectOrg = (org: any) => {
     setSelectedOrg(org);
+    // Reset editing states
+    setEditingOrgId(null);
+    setEditingNoteId(null);
+    setNoteText('');
   };
 
   const handleClosePanel = () => {
     setSelectedOrg(null);
+    setEditingOrgId(null);
+    setEditingNoteId(null);
+    setNoteText('');
   };
 
   // ── Log result ──
-  const handleLogResult = async (result: string) => {
-    if (!selectedOrg) return;
-
+  const handleLogResult = async (org: PipelineOrg, result: string) => {
     if (result === 'ring_tilbake') {
       setShowCallbackPicker(true);
       return;
@@ -228,7 +267,7 @@ export default function KartPage() {
       const res = await fetch('/api/calls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ organizationId: selectedOrg.id, result }),
+        body: JSON.stringify({ organizationId: org.id, result }),
       });
       if (!res.ok) throw new Error();
 
@@ -237,6 +276,7 @@ export default function KartPage() {
         ikke_svar: 'Ingen svar',
         mail_sendt: 'Mail sendt',
         nei: 'Nei',
+        videresendt: 'Videresendt',
       };
       toast.success(resultLabels[result] || 'Logget');
       setSelectedOrg(null);
@@ -249,26 +289,52 @@ export default function KartPage() {
   };
 
   const handleLogCallback = async () => {
-    if (!selectedOrg || !callbackDate) return;
+    if (!selectedOrg || !callbackDay || !callbackTime) return;
     setLoggingResult(true);
     try {
-      const res = await fetch('/api/calls', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          organizationId: selectedOrg.id,
-          result: 'ring_tilbake',
-          callbackAt: callbackDate,
-        }),
-      });
-      if (!res.ok) throw new Error();
-      toast.success('Ring tilbake registrert');
+      const callbackAt = new Date(`${callbackDay}T${callbackTime}:00`).toISOString();
+
+      if (callbackMethod === 'mail' && callbackEmailBody) {
+        if (selectedOrg.chairmanEmail) {
+          const subject = encodeURIComponent(callbackEmailSubject);
+          const body = encodeURIComponent(callbackEmailBody);
+          window.open(`mailto:${selectedOrg.chairmanEmail}?subject=${subject}&body=${body}`, '_blank');
+        }
+        const res = await fetch('/api/calls', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            organizationId: selectedOrg.id,
+            result: 'mail_sendt',
+            callbackAt,
+            notes: `Oppfølging planlagt: ${callbackEmailSubject}`,
+          }),
+        });
+        if (!res.ok) throw new Error();
+      } else {
+        const res = await fetch('/api/calls', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            organizationId: selectedOrg.id,
+            result: 'ring_tilbake',
+            callbackAt,
+          }),
+        });
+        if (!res.ok) throw new Error();
+      }
+
+      toast.success(callbackMethod === 'mail' ? 'E-post åpnet og oppfølging lagret' : 'Oppfølging lagret');
       setShowCallbackPicker(false);
       setSelectedOrg(null);
-      setCallbackDate('');
+      setCallbackDay('');
+      setCallbackTime('');
+      setCallbackMethod('ring');
+      setCallbackEmailSubject('');
+      setCallbackEmailBody('');
       fetchData();
     } catch {
-      toast.error('Kunne ikke logge resultat');
+      toast.error('Kunne ikke lagre oppfølging');
     } finally {
       setLoggingResult(false);
     }
@@ -319,7 +385,7 @@ export default function KartPage() {
   };
 
   // ── SMS ──
-  const replaceVariables = (text: string, org: Organization) => {
+  const replaceVariables = (text: string, org: PipelineOrg) => {
     const userName = (session?.user as any)?.name || '';
     return text
       .replace(/\{\{navn\}\}/g, org.name || '')
@@ -333,10 +399,9 @@ export default function KartPage() {
   const openSmsModal = async () => {
     if (selectedOrg) {
       setSmsText(
-        `Hei, Jonas fra Turbo som prøvde å ringe. Ringte angående "${selectedOrg.name}" Gjelder Ventilasjonsrens. Ring meg gjerne opp når du har mulighet`
+        `Hei, Jonas fra Turbo som prøvde å ringe. Ringte angående "${selectedOrg.name}". Gjelder ventilasjonsrens. Ring meg gjerne opp når du har mulighet.`
       );
     }
-    // Fetch SMS templates
     try {
       const res = await fetch('/api/templates');
       const data = await res.json();
@@ -365,27 +430,31 @@ export default function KartPage() {
       setEmailBody(
         `Hei,
 
-Vi tar kontakt angående ventilasjonsrens for ${selectedOrg.name}.
+Sender som avtalt over informasjon rundt Ventilasjonsrens.
 
-Vi ønsker å tilby en befaring for å kartlegge ventilasjonsanlegget i borettslaget. Befaringen er uforpliktende og gratis.
+Tilbudet gjelder alle boenheter, og det er opp til hver enkelt beboer om de ønsker å benytte seg av det.
 
-Pris for ventilasjonsrens: kr 4 990,- per leilighet (inkl. mva).
+Gratis befaring
+Som en del av tjenesten tilbyr vi en uforpliktende befaringsrunde. Det tar 5–10 minutter per boenhet, og gir beboerne mulighet til å se tilstanden på sitt anlegg før de eventuelt bestiller rens. På befaringen vurderer vi om det faktisk er behov for rens — vi anbefaler ikke jobben hvis anlegget er i god stand.
 
-Hva inngår:
-- Fullstendig rens av alle ventilasjonskanaler
-- Rens av avtrekksventiler
-- Sjekk og justering av luftmengder
-- Dokumentasjon og rapport etter utført arbeid
+Pris - Rens av ventilasjonsanlegg: kr 4 990,- inkl. mva per boenhet (ordinærpris kr 6 990,-)
 
-Hvorfor rense ventilasjonen?
-Over tid samler det seg støv, fett og forurensninger i ventilasjonskanalene. Dette kan føre til dårlig inneklima, økt energiforbruk og i verste fall brannfare. Regelmessig rens sikrer godt inneklima og forlenger levetiden på anlegget.
+Hva inngår i en rens?
+Vi renser ventilasjonsanlegget i hver enkelt boenhet. Ventiler demonteres og rengjøres, og kanalsystemet renses mekanisk med børste helt ut til tilkoblingspunktet mot fellesanlegget. Hver beboer mottar en komplett inspeksjonsrapport med før- og etter-bilder på e-post.
 
-Ta gjerne kontakt for å avtale befaring eller om du har spørsmål.
+Hvorfor rense ventilasjonsanlegget?
+• Norges Astma- og Allergiforbund anbefaler rens minimum hvert 3–5. år
+• Brannvesenet anbefaler jevnlig rens av hensyn til brannsikkerhet
+• Reduserer risiko for slitasjeskader og gir et mer energieffektivt anlegg
+• Kan forlenge anleggets levetid med flere år
+
+Dato for Gratis befaring
+Når vi finner en dato som passer, så har vi en ferdig e-postmal/flyer vi kan sende over, som enkelt kan videresendes til beboerne :)
 
 Med vennlig hilsen
 Jonas Anker Solvang
-Turbo
-Tlf: 902 07 705`
+Ventilasjonskonsulent
+47 88 92 46`
       );
     }
     setEmailCopied(false);
@@ -407,7 +476,6 @@ Tlf: 902 07 705`
     const body = encodeURIComponent(emailBody);
     window.open(`mailto:${selectedOrg.chairmanEmail}?subject=${subject}&body=${body}`, '_blank');
     setShowEmailModal(false);
-    // Auto-log mail_sendt
     try {
       await fetch('/api/calls', {
         method: 'POST',
@@ -421,16 +489,8 @@ Tlf: 902 07 705`
     }
   };
 
-  // ── Notes ──
-  const openNotesModal = () => {
-    if (selectedOrg) {
-      fetchNotes(selectedOrg.id);
-    }
-    setNoteText('');
-    setShowNotesModal(true);
-  };
-
-  const handleSaveNote = async () => {
+  // ── Inline notes ──
+  const handleSaveInlineNote = async () => {
     if (!selectedOrg || !noteText.trim()) return;
     setSavingNote(true);
     try {
@@ -439,19 +499,76 @@ Tlf: 902 07 705`
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           organizationId: selectedOrg.id,
-          result: 'ring_tilbake',
+          result: selectedOrg.latestCallResult || 'ring_tilbake',
           notes: noteText.trim(),
         }),
       });
       if (!res.ok) throw new Error();
       toast.success('Notat lagret');
+      setEditingNoteId(null);
       setNoteText('');
-      fetchNotes(selectedOrg.id);
+      fetchData();
     } catch {
       toast.error('Kunne ikke lagre notat');
     } finally {
       setSavingNote(false);
     }
+  };
+
+  // ── Save org fields ──
+  const handleSaveOrgFields = async () => {
+    if (!selectedOrg) return;
+    setSavingOrg(true);
+    try {
+      const diff: Record<string, string> = {};
+      if (editFields.name.trim() !== (selectedOrg.name || '')) diff.name = editFields.name.trim();
+      if (editFields.chairmanName.trim() !== (selectedOrg.chairmanName || '')) diff.chairmanName = editFields.chairmanName.trim();
+      if (editFields.chairmanPhone.trim() !== (selectedOrg.chairmanPhone || '')) diff.chairmanPhone = editFields.chairmanPhone.trim();
+      if (editFields.chairmanEmail.trim() !== (selectedOrg.chairmanEmail || '')) diff.chairmanEmail = editFields.chairmanEmail.trim();
+
+      if (Object.keys(diff).length === 0) {
+        setEditingOrgId(null);
+        return;
+      }
+
+      const res = await fetch(`/api/organizations/${selectedOrg.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(diff),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Oppdatert');
+      setEditingOrgId(null);
+      fetchData();
+    } catch {
+      toast.error('Kunne ikke lagre endringer');
+    } finally {
+      setSavingOrg(false);
+    }
+  };
+
+  // ── Assign feltselger ──
+  const handleAssignFeltselger = async (fsId: string) => {
+    if (!selectedOrg) return;
+    try {
+      const res = await fetch(`/api/organizations/${selectedOrg.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignedToId: fsId }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Feltselger tildelt');
+      setSelectedOrg(null);
+      fetchData();
+    } catch {
+      toast.error('Kunne ikke tildele feltselger');
+    }
+  };
+
+  // ── Mark as videresendt ──
+  const handleMarkVideresendt = async () => {
+    if (!selectedOrg) return;
+    await handleLogResult(selectedOrg, 'videresendt');
   };
 
   // ── Open modals from bottom sheet ──
@@ -549,7 +666,6 @@ Tlf: 902 07 705`
       });
       if (!res.ok) throw new Error();
 
-      // Assign to current user + save note
       const data = await res.json();
       if (data.organization?.id) {
         const updateData: any = {};
@@ -564,7 +680,6 @@ Tlf: 902 07 705`
         }
       }
 
-      // Check if geocoding succeeded
       if (data.organization && (data.organization.latitude == null || data.organization.longitude == null)) {
         toast('Adresse lagt til, men kunne ikke finne koordinater. Adressen vises ikke på kartet.', { icon: '⚠️', duration: 5000 });
       } else {
@@ -586,18 +701,41 @@ Tlf: 902 07 705`
     }
   };
 
-  const statusChips = [
-    { id: 'alle', label: 'Alle' },
-    { id: 'ikke_kontaktet', label: 'Nye', count: filterCounts.ikke_kontaktet || 0 },
-    { id: 'ingen_svar', label: 'Ingen svar', count: filterCounts.ingen_svar || 0 },
-    { id: 'callback', label: 'Callback', count: filterCounts.callback || 0 },
-    { id: 'mail_sendt', label: 'Mail sendt', count: filterCounts.mail_sendt || 0 },
-    { id: 'mote_booket', label: 'Booket', count: filterCounts.mote_booket || 0 },
-    { id: 'venter_tekniker', label: 'Oppdrag', count: filterCounts.venter_tekniker || 0 },
-    { id: 'fullfort', label: 'Fullført', count: filterCounts.fullfort || 0 },
-  ];
-
   if (loading) return <LoadingSpinner />;
+
+  // Calendar for callback picker — 3 weeks starting from this Monday
+  const cbToday = new Date();
+  cbToday.setHours(0, 0, 0, 0);
+  const cbTodayStr = format(cbToday, 'yyyy-MM-dd');
+  const cbDow = cbToday.getDay();
+  const cbMonday = addDays(cbToday, cbDow === 0 ? -6 : 1 - cbDow);
+  const calendarWeeks: string[][] = [];
+  for (let w = 0; w < 3; w++) {
+    const week: string[] = [];
+    for (let d = 0; d < 7; d++) {
+      week.push(format(addDays(cbMonday, w * 7 + d), 'yyyy-MM-dd'));
+    }
+    calendarWeeks.push(week);
+  }
+  const cbTimeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'];
+
+  const followupEmailTemplates = [
+    {
+      label: 'Info ventilasjonsrens',
+      getSubject: (name: string) => `Ventilasjonsrens — ${name}`,
+      getBody: (_name: string) => `Hei,\n\nSender som avtalt over informasjon rundt Ventilasjonsrens.\n\nTilbudet gjelder alle boenheter, og det er opp til hver enkelt beboer om de ønsker å benytte seg av det.\n\nGratis befaring\nSom en del av tjenesten tilbyr vi en uforpliktende befaringsrunde. Det tar 5–10 minutter per boenhet, og gir beboerne mulighet til å se tilstanden på sitt anlegg før de eventuelt bestiller rens. På befaringen vurderer vi om det faktisk er behov for rens — vi anbefaler ikke jobben hvis anlegget er i god stand.\n\nPris - Rens av ventilasjonsanlegg: kr 4 990,- inkl. mva per boenhet (ordinærpris kr 6 990,-)\n\nHva inngår i en rens?\nVi renser ventilasjonsanlegget i hver enkelt boenhet. Ventiler demonteres og rengjøres, og kanalsystemet renses mekanisk med børste helt ut til tilkoblingspunktet mot fellesanlegget. Hver beboer mottar en komplett inspeksjonsrapport med før- og etter-bilder på e-post.\n\nHvorfor rense ventilasjonsanlegget?\n• Norges Astma- og Allergiforbund anbefaler rens minimum hvert 3–5. år\n• Brannvesenet anbefaler jevnlig rens av hensyn til brannsikkerhet\n• Reduserer risiko for slitasjeskader og gir et mer energieffektivt anlegg\n• Kan forlenge anleggets levetid med flere år\n\nDato for Gratis befaring\nNår vi finner en dato som passer, så har vi en ferdig e-postmal/flyer vi kan sende over, som enkelt kan videresendes til beboerne :)\n\nMed vennlig hilsen\nJonas Anker Solvang\nVentilasjonskonsulent\n47 88 92 46`,
+    },
+    {
+      label: 'Oppfølging',
+      getSubject: (name: string) => `Oppfølging — ${name}`,
+      getBody: (name: string) => `Hei,\n\nViser til vår hyggelige samtale angående ventilasjonsrens for ${name}.\n\nHar styret hatt mulighet til å se over informasjonen vi sendte?\n\nVi tilbyr fortsatt gratis og uforpliktende befaring, der vi vurderer behovet i hver enkelt boenhet. Det tar kun 5–10 minutter per enhet.\n\nTa gjerne kontakt om dere har spørsmål eller ønsker å avtale befaring.\n\nMed vennlig hilsen\nJonas Anker Solvang\nVentilasjonskonsulent\n47 88 92 46`,
+    },
+    {
+      label: 'Påminnelse',
+      getSubject: (name: string) => `Påminnelse: Ventilasjonsrens — ${name}`,
+      getBody: (name: string) => `Hei,\n\nSender en vennlig påminnelse om tilbudet vårt på ventilasjonsrens for ${name}.\n\nVi har fortsatt ledig kapasitet for gratis befaring i deres område. Befaringen er helt uforpliktende og gir beboerne mulighet til å se tilstanden på sitt ventilasjonsanlegg.\n\nGi gjerne beskjed om dere ønsker å avtale et tidspunkt.\n\nMed vennlig hilsen\nJonas Anker Solvang\nVentilasjonskonsulent\n47 88 92 46`,
+    },
+  ];
 
   return (
     <div className="flex flex-col h-full">
@@ -620,7 +758,69 @@ Tlf: 902 07 705`
             onChange={setView}
           />
         </div>
-        <FilterChips chips={statusChips} activeChip={statusFilter} onChange={setStatusFilter} />
+      </div>
+
+      {/* Pipeline stepper bar */}
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-200">
+        <div className="overflow-x-auto no-scrollbar px-4 py-4">
+          <div className="flex items-center min-w-[540px] mx-auto" style={{ maxWidth: 700 }}>
+            {PIPELINE_STAGES.map((stage, i) => {
+              const count = stageCounts[stage.key] || 0;
+              const isActive = stage.key === activeStep;
+              const isPast = i < activeIdx;
+
+              return (
+                <div key={stage.key} className="contents">
+                  {/* Connector line */}
+                  {i > 0 && (
+                    <div
+                      className="flex-1 h-[3px] rounded-full mx-1"
+                      style={{
+                        background: isPast || isActive ? `${PIPELINE_STAGES[i].color}40` : '#E5E7EB',
+                      }}
+                    />
+                  )}
+                  {/* Step circle */}
+                  <button
+                    onClick={() => setActiveStep(stage.key)}
+                    className="flex flex-col items-center gap-1 flex-shrink-0 transition-transform active:scale-95"
+                    style={{ minWidth: 56 }}
+                  >
+                    <div
+                      className={cn(
+                        'w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold border-[2.5px] transition-all',
+                        isActive && 'shadow-lg scale-105'
+                      )}
+                      style={
+                        isActive
+                          ? { background: stage.color, borderColor: stage.color, color: '#fff' }
+                          : isPast
+                            ? { background: stage.colorLight, borderColor: `${stage.color}80`, color: stage.color }
+                            : { borderColor: '#E5E7EB', color: '#9CA3AF', background: '#fff' }
+                      }
+                    >
+                      {isActive ? stage.emoji : count}
+                    </div>
+                    <span
+                      className={cn(
+                        'text-[10px] font-semibold leading-tight text-center',
+                        isActive ? 'text-gray-900' : 'text-gray-400'
+                      )}
+                      style={{ maxWidth: 64 }}
+                    >
+                      {stage.short}
+                    </span>
+                    {isActive && (
+                      <span className="text-[10px] font-bold" style={{ color: stage.color }}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Addresses without coordinates warning */}
@@ -658,8 +858,8 @@ Tlf: 902 07 705`
       <div className="flex-1 min-h-0 relative">
         {view === 'kart' ? (
           <MapView
-            organizations={organizations}
-            statusFilter={statusFilter}
+            organizations={mapOrgs}
+            statusFilter="alle"
             onSelectOrg={(org: any) => handleSelectOrg(org)}
             orgMarkerTypes={orgMarkerTypes}
             buildYearFilter={buildYearFilter}
@@ -669,9 +869,7 @@ Tlf: 902 07 705`
           />
         ) : (
           <DialerView
-            organizations={organizations.filter(
-              (org) => statusFilter === 'alle' || orgMarkerTypes[org.id] === statusFilter
-            )}
+            organizations={mapOrgs}
             feltselgere={feltselgere}
             stats={stats}
             onCallLogged={fetchData}
@@ -679,55 +877,216 @@ Tlf: 902 07 705`
         )}
 
         {/* Bottom sheet */}
-        {selectedOrg && (
+        {selectedOrg && activeStage && (
           <OrgBottomSheet
             org={selectedOrg}
-            onClose={handleClosePanel}
-            onLogResult={handleLogResult}
-            onBookMeeting={handleOpenBookMeeting}
+            stage={activeStage}
+            feltselgere={feltselgere}
+            editingOrgId={editingOrgId}
+            editFields={editFields}
+            savingOrg={savingOrg}
+            onEditOrg={(id) => {
+              setEditingNoteId(null);
+              setNoteText('');
+              setEditingOrgId(id);
+              setEditFields({
+                name: selectedOrg.name || '',
+                chairmanName: selectedOrg.chairmanName || '',
+                chairmanPhone: selectedOrg.chairmanPhone || '',
+                chairmanEmail: selectedOrg.chairmanEmail || '',
+              });
+            }}
+            onCancelEditOrg={() => setEditingOrgId(null)}
+            onEditFieldChange={(field, value) => setEditFields((prev) => ({ ...prev, [field]: value }))}
+            onSaveOrg={handleSaveOrgFields}
+            editingNoteId={editingNoteId}
+            noteText={noteText}
+            savingNote={savingNote}
+            onEditNote={(id) => {
+              setEditingOrgId(null);
+              setEditingNoteId(id);
+              setNoteText(selectedOrg.latestCallNotes || '');
+            }}
+            onCancelNote={() => {
+              setEditingNoteId(null);
+              setNoteText('');
+            }}
+            onNoteChange={setNoteText}
+            onSaveNote={handleSaveInlineNote}
+            onCall={() => {
+              if (selectedOrg.chairmanPhone) {
+                window.open(`tel:${selectedOrg.chairmanPhone}`, '_blank');
+              } else {
+                toast.error('Ingen telefonnummer registrert');
+              }
+            }}
             onSms={openSmsModal}
             onEmail={openEmailModal}
-            onNotes={openNotesModal}
+            onCallback={() => {
+              setCallbackDay('');
+              setCallbackTime('');
+              setCallbackMethod('ring');
+              setCallbackEmailSubject('');
+              setCallbackEmailBody('');
+              setShowCallbackPicker(true);
+            }}
+            onMarkVideresendt={handleMarkVideresendt}
+            onAssignFeltselger={handleAssignFeltselger}
+            onBookMeeting={handleOpenBookMeeting}
             onCreateWorkOrder={handleOpenCreateWorkOrder}
             onDelete={() => setShowDeleteConfirm(true)}
+            onClose={handleClosePanel}
             loggingResult={loggingResult}
           />
         )}
       </div>
 
       {/* ── Callback picker modal ── */}
-      <Modal isOpen={showCallbackPicker} onClose={() => setShowCallbackPicker(false)} title="Når skal du ringe tilbake?">
+      <Modal isOpen={showCallbackPicker} onClose={() => setShowCallbackPicker(false)} title="Planlegg oppfølging" size="lg">
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: 'Om 1 time', getValue: () => { const d = new Date(); d.setHours(d.getHours() + 1); return d.toISOString(); } },
-              { label: 'Om 2 timer', getValue: () => { const d = new Date(); d.setHours(d.getHours() + 2); return d.toISOString(); } },
-              { label: 'I morgen 09:00', getValue: () => { const d = addDays(new Date(), 1); d.setHours(9, 0, 0, 0); return d.toISOString(); } },
-              { label: 'I morgen 12:00', getValue: () => { const d = addDays(new Date(), 1); d.setHours(12, 0, 0, 0); return d.toISOString(); } },
-            ].map((opt) => (
+          {/* Method selector */}
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-2">Hvordan følge opp?</p>
+            <div className="flex gap-2">
               <button
-                key={opt.label}
-                onClick={() => { setCallbackDate(opt.getValue()); }}
+                onClick={() => { setCallbackMethod('ring'); setCallbackEmailSubject(''); setCallbackEmailBody(''); }}
                 className={cn(
-                  'px-4 py-2 rounded-xl text-sm font-medium border transition-colors',
-                  callbackDate === opt.getValue()
+                  'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-colors',
+                  callbackMethod === 'ring'
                     ? 'bg-black text-white border-black'
                     : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
                 )}
               >
-                {opt.label}
+                <Phone className="w-4 h-4" />Ring
               </button>
-            ))}
+              <button
+                onClick={() => setCallbackMethod('mail')}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-colors',
+                  callbackMethod === 'mail'
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+                )}
+              >
+                <Mail className="w-4 h-4" />Send mail
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-gray-400 text-center">eller velg fra kalender</p>
-          <input
-            type="datetime-local"
-            value={callbackDate ? callbackDate.slice(0, 16) : ''}
-            onChange={(e) => setCallbackDate(new Date(e.target.value).toISOString())}
-            className="input-field w-full"
-          />
-          <Button fullWidth onClick={handleLogCallback} isLoading={loggingResult} disabled={!callbackDate}>
-            Lagre callback
+
+          {/* Calendar */}
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-2">Velg dag</p>
+            <div className="bg-gray-50 rounded-xl p-3">
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {['Ma', 'Ti', 'On', 'To', 'Fr', 'Lø', 'Sø'].map((d) => (
+                  <div key={d} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
+                ))}
+              </div>
+              {calendarWeeks.map((week, wi) => (
+                <div key={wi} className="grid grid-cols-7 gap-1">
+                  {week.map((dayStr) => {
+                    const isPast = dayStr < cbTodayStr;
+                    const isToday = dayStr === cbTodayStr;
+                    const isSelected = dayStr === callbackDay;
+                    const dayNum = parseInt(dayStr.slice(8), 10);
+                    return (
+                      <button
+                        key={dayStr}
+                        disabled={isPast}
+                        onClick={() => setCallbackDay(dayStr)}
+                        className={cn(
+                          'h-10 rounded-lg text-sm font-medium transition-colors',
+                          isPast && 'text-gray-300 cursor-not-allowed',
+                          !isPast && !isSelected && 'text-gray-700 hover:bg-gray-200',
+                          isToday && !isSelected && 'ring-2 ring-black ring-inset',
+                          isSelected && 'bg-black text-white'
+                        )}
+                      >
+                        {dayNum}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Time slots */}
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-2">Velg tid</p>
+            <div className="flex flex-wrap gap-2">
+              {cbTimeSlots.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setCallbackTime(t)}
+                  className={cn(
+                    'px-3.5 py-2 rounded-xl text-sm font-medium border transition-colors',
+                    callbackTime === t
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Email templates (only when mail method) */}
+          {callbackMethod === 'mail' && (
+            <div className="space-y-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-2">Velg e-postmal</p>
+                <div className="flex flex-wrap gap-2">
+                  {followupEmailTemplates.map((tpl, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setCallbackEmailSubject(tpl.getSubject(selectedOrg?.name || ''));
+                        setCallbackEmailBody(tpl.getBody(selectedOrg?.name || ''));
+                      }}
+                      className={cn(
+                        'px-3 py-1.5 text-sm rounded-xl border transition-colors',
+                        callbackEmailSubject === tpl.getSubject(selectedOrg?.name || '')
+                          ? 'bg-black text-white border-black'
+                          : 'border-gray-200 hover:border-black hover:bg-gray-50'
+                      )}
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {callbackEmailBody && (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={callbackEmailSubject}
+                    onChange={(e) => setCallbackEmailSubject(e.target.value)}
+                    className="w-full text-sm bg-white border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-blue-400"
+                    style={{ fontSize: 16 }}
+                    placeholder="Emne"
+                  />
+                  <textarea
+                    value={callbackEmailBody}
+                    onChange={(e) => setCallbackEmailBody(e.target.value)}
+                    rows={6}
+                    className="w-full text-sm bg-white border border-gray-300 rounded-lg px-3 py-2 resize-none outline-none focus:border-blue-400"
+                    style={{ fontSize: 16 }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Save button */}
+          <Button
+            fullWidth
+            onClick={handleLogCallback}
+            isLoading={loggingResult}
+            disabled={!callbackDay || !callbackTime || (callbackMethod === 'mail' && !callbackEmailBody)}
+          >
+            {callbackMethod === 'mail' ? 'Send mail og lagre' : 'Lagre oppfølging'}
           </Button>
         </div>
       </Modal>
@@ -839,46 +1198,9 @@ Tlf: 902 07 705`
               {emailCopied ? 'Kopiert!' : 'Kopier tekst'}
             </Button>
             <Button fullWidth onClick={handleSendEmail}>
-              Åpne i epost
+              Åpne i e-post
             </Button>
           </div>
-        </div>
-      </Modal>
-
-      {/* ── Notes modal ── */}
-      <Modal isOpen={showNotesModal} onClose={() => setShowNotesModal(false)} title="Notater">
-        <div className="space-y-4">
-          {/* Previous notes */}
-          {notes.length > 0 && (
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {notes.map((n) => (
-                <div key={n.id} className="bg-gray-50 rounded-xl p-3">
-                  <p className="text-sm text-gray-800">{n.notes}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {format(new Date(n.createdAt), 'd. MMM yyyy HH:mm', { locale: nb })}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-          {notes.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-4">Ingen notater ennå</p>
-          )}
-
-          {/* New note */}
-          <div>
-            <label className="label">Nytt notat</label>
-            <textarea
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              rows={3}
-              placeholder="Skriv notat..."
-              className="input-field w-full resize-none"
-            />
-          </div>
-          <Button fullWidth onClick={handleSaveNote} isLoading={savingNote} disabled={!noteText.trim()}>
-            Lagre
-          </Button>
         </div>
       </Modal>
 

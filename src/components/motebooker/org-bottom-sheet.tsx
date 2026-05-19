@@ -1,12 +1,13 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { X, Phone, MessageSquare, Mail, FileText, Copy, Car, CalendarDays, UserPlus, Wrench, Trash2 } from 'lucide-react';
+import { X, Phone, Mail, Copy, Car, UserPlus, Wrench, Trash2, Pencil, Clock, MessageSquareText, CheckCircle2, Eye, Users, Calendar } from 'lucide-react';
 import { formatDistance, formatPhone } from '@/lib/utils';
 import { saveContact } from '@/lib/vcard';
+import type { PipelineStage } from '@/lib/pipeline';
 import toast from 'react-hot-toast';
 
-interface Organization {
+interface PipelineOrg {
   id: string;
   name: string;
   address: string;
@@ -22,33 +23,79 @@ interface Organization {
   distanceFromOfficeMin: number | null;
   assignedToId: string | null;
   notes: string | null;
+  pipelineStage: string;
+  latestCallResult: string | null;
+  latestCallNotes: string | null;
+  latestCallDate: string | null;
 }
 
 interface OrgBottomSheetProps {
-  org: Organization;
-  onClose: () => void;
-  onLogResult: (result: string) => void;
-  onBookMeeting: () => void;
+  org: PipelineOrg;
+  stage: PipelineStage;
+  feltselgere: { id: string; name: string }[];
+  // Inline org editing
+  editingOrgId: string | null;
+  editFields: { name: string; chairmanName: string; chairmanPhone: string; chairmanEmail: string };
+  savingOrg: boolean;
+  onEditOrg: (id: string) => void;
+  onCancelEditOrg: () => void;
+  onEditFieldChange: (field: string, value: string) => void;
+  onSaveOrg: () => void;
+  // Inline notes
+  editingNoteId: string | null;
+  noteText: string;
+  savingNote: boolean;
+  onEditNote: (id: string) => void;
+  onCancelNote: () => void;
+  onNoteChange: (text: string) => void;
+  onSaveNote: () => void;
+  // Stage actions
+  onCall: () => void;
   onSms: () => void;
   onEmail: () => void;
-  onNotes: () => void;
+  onCallback: () => void;
+  onMarkVideresendt: () => void;
+  onAssignFeltselger: (fsId: string) => void;
+  onBookMeeting: () => void;
   onCreateWorkOrder?: () => void;
   onDelete?: () => void;
+  onClose: () => void;
   loggingResult?: boolean;
 }
 
 export default function OrgBottomSheet({
   org,
-  onClose,
-  onLogResult,
-  onBookMeeting,
+  stage,
+  feltselgere,
+  editingOrgId,
+  editFields,
+  savingOrg,
+  onEditOrg,
+  onCancelEditOrg,
+  onEditFieldChange,
+  onSaveOrg,
+  editingNoteId,
+  noteText,
+  savingNote,
+  onEditNote,
+  onCancelNote,
+  onNoteChange,
+  onSaveNote,
+  onCall,
   onSms,
   onEmail,
-  onNotes,
+  onCallback,
+  onMarkVideresendt,
+  onAssignFeltselger,
+  onBookMeeting,
   onCreateWorkOrder,
   onDelete,
+  onClose,
   loggingResult,
 }: OrgBottomSheetProps) {
+  const isEditingOrg = editingOrgId === org.id;
+  const isEditingNote = editingNoteId === org.id;
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('Kopiert');
@@ -80,6 +127,10 @@ export default function OrgBottomSheet({
     setDragOffset(0);
   };
 
+  const primaryBtn = 'w-full flex items-center justify-center gap-2 bg-black text-white rounded-xl hover:bg-gray-800 font-medium text-sm py-3 px-4 active:scale-[0.97] transition-all';
+  const secondaryBtn = 'w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium text-sm py-2.5 px-3 active:scale-[0.97] transition-all';
+  const boldBtn = 'w-full flex items-center justify-center gap-2 bg-gray-900 text-white rounded-xl hover:bg-black font-bold text-sm py-3 px-4 active:scale-[0.97] transition-all';
+
   return (
     <div
       className="absolute inset-0 z-[1000] flex flex-col animate-slide-up"
@@ -90,6 +141,9 @@ export default function OrgBottomSheet({
 
       {/* Panel */}
       <div className="flex-1 flex flex-col bg-white rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] overflow-hidden">
+        {/* Stage color accent */}
+        <div className="h-1" style={{ background: stage.color }} />
+
         {/* Drag handle + close */}
         <div
           className="shrink-0 pt-2 pb-1 cursor-grab active:cursor-grabbing"
@@ -111,13 +165,28 @@ export default function OrgBottomSheet({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2.5" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
-          {/* Org info + inline stats */}
+          {/* Org info with inline editing */}
           <div>
-            <h2 className="text-base font-bold leading-tight">{org.name}</h2>
+            <div className="flex items-start justify-between gap-2">
+              {isEditingOrg ? (
+                <input
+                  type="text"
+                  value={editFields.name}
+                  onChange={(e) => onEditFieldChange('name', e.target.value)}
+                  className="text-base font-bold leading-tight bg-white border border-gray-300 rounded-lg px-2 py-1 outline-none focus:border-blue-400 flex-1 min-w-0"
+                  style={{ fontSize: 16 }}
+                />
+              ) : (
+                <h2 className="text-base font-bold leading-tight">{org.name}</h2>
+              )}
+              {org.numUnits && (
+                <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-lg flex-shrink-0">
+                  {org.numUnits} enh.
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500">{org.address}</p>
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-              {org.numUnits && <span>{org.numUnits} enheter</span>}
-              {org.buildingYear && <span>Byggeår {org.buildingYear}</span>}
               {org.distanceFromOfficeKm != null && org.distanceFromOfficeMin != null && (
                 <span className="flex items-center gap-1">
                   <Car className="h-3 w-3" />
@@ -127,136 +196,259 @@ export default function OrgBottomSheet({
             </div>
           </div>
 
-          {/* Notes */}
-          {org.notes && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
-              <p className="text-xs font-medium text-amber-700 uppercase mb-0.5">Notat</p>
-              <p className="text-sm text-amber-900">{org.notes}</p>
-            </div>
-          )}
-
-          {/* Chairman section */}
-          {org.chairmanName && (
-            <div className="border border-gray-100 rounded-xl px-3 py-2.5 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-gray-400 uppercase">Styreleder</span>
-                  <p className="text-sm font-semibold leading-tight">{org.chairmanName}</p>
+          {/* Inline notes */}
+          <div>
+            {isEditingNote ? (
+              <div className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+                <textarea
+                  rows={2}
+                  placeholder="Skriv notat..."
+                  value={noteText}
+                  onChange={(e) => onNoteChange(e.target.value)}
+                  className="w-full px-3 py-2 text-[13px] text-gray-700 resize-none outline-none"
+                  style={{ fontSize: 16 }}
+                  autoFocus
+                />
+                <div className="flex items-center justify-end gap-2 px-2 py-1.5 bg-gray-50 border-t border-gray-100">
+                  <button onClick={onCancelNote} className="text-[11px] text-gray-400 hover:text-gray-600 font-medium px-2 py-1">
+                    Avbryt
+                  </button>
+                  <button
+                    onClick={onSaveNote}
+                    disabled={savingNote}
+                    className="text-[11px] text-white bg-black hover:bg-gray-800 font-medium px-3 py-1 rounded-md disabled:opacity-50"
+                  >
+                    {savingNote ? 'Lagrer...' : 'Lagre'}
+                  </button>
                 </div>
               </div>
-              {org.chairmanPhone && (
-                <div className="flex items-center justify-between">
-                  <a href={`tel:${org.chairmanPhone}`} className="flex items-center gap-1.5 text-sm text-blue-600">
-                    <Phone className="h-3.5 w-3.5" />
-                    {formatPhone(org.chairmanPhone)}
-                  </a>
-                  <button onClick={() => copyToClipboard(org.chairmanPhone!)} className="p-1 rounded-lg hover:bg-gray-100">
-                    <Copy className="h-3.5 w-3.5 text-gray-400" />
-                  </button>
-                </div>
-              )}
-              {org.chairmanEmail && (
-                <div className="flex items-center justify-between">
-                  <a href={`mailto:${org.chairmanEmail}`} className="flex items-center gap-1.5 text-sm text-blue-600">
-                    <Mail className="h-3.5 w-3.5" />
-                    {org.chairmanEmail}
-                  </a>
-                  <button onClick={() => copyToClipboard(org.chairmanEmail!)} className="p-1 rounded-lg hover:bg-gray-100">
-                    <Copy className="h-3.5 w-3.5 text-gray-400" />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Ring button + save contact */}
-          {org.chairmanPhone && (
-            <div className="flex gap-2">
-              <a
-                href={`tel:${org.chairmanPhone}`}
-                onClick={() => {
-                  if (org.chairmanName && org.chairmanPhone) {
-                    saveContact({
-                      name: org.chairmanName,
-                      phone: org.chairmanPhone,
-                      email: org.chairmanEmail,
-                      organization: org.name,
-                      address: org.address,
-                    });
-                  }
-                }}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 transition-colors"
-              >
-                <Phone className="h-4 w-4" />
-                Ring {org.chairmanName?.split(' ')[0] || 'Styreleder'}
-              </a>
+            ) : org.latestCallNotes ? (
               <button
-                onClick={() => {
-                  if (org.chairmanName) {
-                    saveContact({
-                      name: org.chairmanName,
-                      phone: org.chairmanPhone,
-                      email: org.chairmanEmail,
-                      organization: org.name,
-                      address: org.address,
-                    });
-                    toast.success('Kontakt lastet ned');
-                  }
-                }}
-                className="flex items-center justify-center w-11 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors"
-                title="Lagre kontakt"
+                onClick={() => onEditNote(org.id)}
+                className="w-full text-left bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2 hover:bg-amber-100 transition-colors"
               >
-                <UserPlus className="h-4 w-4 text-gray-600" />
+                <Pencil className="w-3 h-3 mt-0.5 flex-shrink-0 text-amber-500" />
+                <p className="text-[12px] text-gray-700 flex-1">{org.latestCallNotes}</p>
               </button>
-            </div>
-          )}
-
-          {/* Quick actions */}
-          <div className="grid grid-cols-5 gap-1.5">
-            <button onClick={onSms} className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-              <MessageSquare className="h-4 w-4 text-gray-600" />
-              <span className="text-[10px] text-gray-600">SMS</span>
-            </button>
-            <button onClick={onEmail} className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-              <Mail className="h-4 w-4 text-gray-600" />
-              <span className="text-[10px] text-gray-600">E-post</span>
-            </button>
-            <button onClick={onNotes} className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-              <FileText className="h-4 w-4 text-gray-600" />
-              <span className="text-[10px] text-gray-600">Notater</span>
-            </button>
-            <button onClick={onBookMeeting} className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-              <CalendarDays className="h-4 w-4 text-gray-600" />
-              <span className="text-[10px] text-gray-600">Book møte</span>
-            </button>
-            {onCreateWorkOrder && (
-              <button onClick={onCreateWorkOrder} className="flex flex-col items-center gap-0.5 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                <Wrench className="h-4 w-4 text-gray-600" />
-                <span className="text-[10px] text-gray-600">Oppdrag</span>
+            ) : (
+              <button
+                onClick={() => onEditNote(org.id)}
+                className="w-full flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-gray-600 py-1.5 px-1 transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Legg til notat
               </button>
             )}
           </div>
 
-          {/* Emoji result bar */}
-          <div className="flex items-center justify-around">
-            {[
-              { result: 'ikke_svar', emoji: '❄️', label: 'Ingen svar' },
-              { result: 'ring_tilbake', emoji: '📞', label: 'Callback' },
-              { result: 'mote_booket', emoji: '✅', label: 'Fullført' },
-              { result: 'nei', emoji: '🚫', label: 'Nei' },
-            ].map((btn) => (
-              <button
-                key={btn.result}
-                onClick={() => onLogResult(btn.result)}
-                disabled={loggingResult}
-                className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl hover:bg-gray-50 active:scale-90 transition-all disabled:opacity-50"
-              >
-                <span className="text-xl">{btn.emoji}</span>
-                <span className="text-[10px] text-gray-500 font-medium">{btn.label}</span>
-              </button>
-            ))}
-          </div>
+          {/* Chairman section with inline editing */}
+          {isEditingOrg ? (
+            <div className="bg-gray-50 border border-gray-300 rounded-lg px-3 py-3 space-y-2">
+              <p className="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Styreleder</p>
+              <input
+                type="text"
+                placeholder="Navn"
+                value={editFields.chairmanName}
+                onChange={(e) => onEditFieldChange('chairmanName', e.target.value)}
+                className="w-full text-sm bg-white border border-gray-300 rounded-lg px-2.5 py-2 outline-none focus:border-blue-400"
+                style={{ fontSize: 16 }}
+              />
+              <input
+                type="tel"
+                placeholder="Telefon"
+                value={editFields.chairmanPhone}
+                onChange={(e) => onEditFieldChange('chairmanPhone', e.target.value)}
+                className="w-full text-sm bg-white border border-gray-300 rounded-lg px-2.5 py-2 outline-none focus:border-blue-400"
+                style={{ fontSize: 16 }}
+              />
+              <input
+                type="email"
+                placeholder="E-post"
+                value={editFields.chairmanEmail}
+                onChange={(e) => onEditFieldChange('chairmanEmail', e.target.value)}
+                className="w-full text-sm bg-white border border-gray-300 rounded-lg px-2.5 py-2 outline-none focus:border-blue-400"
+                style={{ fontSize: 16 }}
+              />
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button onClick={onCancelEditOrg} className="text-[12px] text-gray-400 hover:text-gray-600 font-medium px-3 py-1.5">
+                  Avbryt
+                </button>
+                <button
+                  onClick={onSaveOrg}
+                  disabled={savingOrg}
+                  className="text-[12px] text-white bg-black hover:bg-gray-800 font-medium px-4 py-1.5 rounded-lg disabled:opacity-50"
+                >
+                  {savingOrg ? 'Lagrer...' : 'Lagre'}
+                </button>
+              </div>
+            </div>
+          ) : org.chairmanName ? (
+            <div className="flex items-center justify-between bg-gray-100 border border-gray-300 rounded-lg px-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-[9px] uppercase tracking-wider text-gray-500 font-bold mb-0.5">Styreleder</p>
+                <p className="text-sm font-semibold text-gray-900">{org.chairmanName}</p>
+                {org.chairmanPhone && (
+                  <div className="flex items-center gap-1.5">
+                    <a href={`tel:${org.chairmanPhone}`} className="text-xs text-blue-600">
+                      {formatPhone(org.chairmanPhone)}
+                    </a>
+                    <button onClick={() => copyToClipboard(org.chairmanPhone!)} className="p-0.5 rounded hover:bg-gray-200">
+                      <Copy className="h-3 w-3 text-gray-400" />
+                    </button>
+                  </div>
+                )}
+                {org.chairmanEmail && (
+                  <div className="flex items-center gap-1.5">
+                    <a href={`mailto:${org.chairmanEmail}`} className="text-xs text-blue-600 truncate">
+                      {org.chairmanEmail}
+                    </a>
+                    <button onClick={() => copyToClipboard(org.chairmanEmail!)} className="p-0.5 rounded hover:bg-gray-200">
+                      <Copy className="h-3 w-3 text-gray-400" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => onEditOrg(org.id)}
+                  className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-gray-500" />
+                </button>
+                {org.chairmanPhone && (
+                  <a
+                    href={`tel:${org.chairmanPhone}`}
+                    onClick={() => {
+                      if (org.chairmanName && org.chairmanPhone) {
+                        saveContact({
+                          name: org.chairmanName,
+                          phone: org.chairmanPhone,
+                          email: org.chairmanEmail,
+                          organization: org.name,
+                          address: org.address,
+                        });
+                      }
+                    }}
+                    className="w-11 h-11 rounded-full bg-black flex items-center justify-center hover:bg-gray-800 active:scale-95 transition-all"
+                  >
+                    <Phone className="w-[18px] h-[18px] text-white" />
+                  </a>
+                )}
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => onEditOrg(org.id)}
+              className="w-full flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-gray-600 py-1.5 px-1 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Legg til styreleder
+            </button>
+          )}
 
+          {/* Feltselger badge (for klar stage) */}
+          {org.pipelineStage === 'klar' && org.assignedToId && (
+            <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+              <Users className="w-4 h-4 text-green-600 flex-shrink-0" />
+              <div>
+                <p className="text-[9px] uppercase tracking-wider text-green-600 font-semibold">Feltselger</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {feltselgere.find((f) => f.id === org.assignedToId)?.name || 'Tildelt'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Stage-specific actions */}
+          {org.pipelineStage === 'ikke_ringt' && (
+            <div className="space-y-2">
+              <button onClick={onCall} disabled={loggingResult} className={primaryBtn}>
+                <Phone className="w-4 h-4" />Ring
+              </button>
+              <div className="flex gap-2">
+                <button onClick={onEmail} className={`${secondaryBtn} flex-1`}>
+                  <Mail className="w-4 h-4" />Send mail
+                </button>
+                <button onClick={onCallback} className={`${secondaryBtn} flex-1`}>
+                  <Clock className="w-4 h-4" />Callback
+                </button>
+              </div>
+              <button onClick={onSms} className={secondaryBtn}>
+                <MessageSquareText className="w-4 h-4" />Send SMS
+              </button>
+            </div>
+          )}
+
+          {org.pipelineStage === 'ringt_folg_opp' && (
+            <div className="space-y-2">
+              <button onClick={onCall} disabled={loggingResult} className={primaryBtn}>
+                <Phone className="w-4 h-4" />Ring igjen
+              </button>
+              <div className="flex gap-2">
+                <button onClick={onEmail} className={`${secondaryBtn} flex-1`}>
+                  <Mail className="w-4 h-4" />Send mail
+                </button>
+                <button onClick={onCallback} className={`${secondaryBtn} flex-1`}>
+                  <Clock className="w-4 h-4" />Callback
+                </button>
+              </div>
+              <button onClick={onSms} className={secondaryBtn}>
+                <MessageSquareText className="w-4 h-4" />Send SMS
+              </button>
+            </div>
+          )}
+
+          {org.pipelineStage === 'venter' && (
+            <div className="space-y-2">
+              <button onClick={onCall} disabled={loggingResult} className={primaryBtn}>
+                <Phone className="w-4 h-4" />Ring for å sjekke
+              </button>
+              <div className="flex gap-2">
+                <button onClick={onMarkVideresendt} className={`${secondaryBtn} flex-1`}>
+                  <CheckCircle2 className="w-4 h-4" />Merk videresendt
+                </button>
+                <button onClick={onEmail} className={`${secondaryBtn} flex-1`}>
+                  <Eye className="w-4 h-4" />Vis mal
+                </button>
+              </div>
+            </div>
+          )}
+
+          {org.pipelineStage === 'videresendt' && (
+            <div>
+              <p className="text-[9px] uppercase tracking-wider text-gray-400 font-semibold mb-2">
+                Fordel til feltselger
+              </p>
+              <div className="flex flex-col gap-2">
+                {feltselgere.map((fs) => (
+                  <button
+                    key={fs.id}
+                    onClick={() => onAssignFeltselger(fs.id)}
+                    className={secondaryBtn}
+                  >
+                    <Users className="w-4 h-4" />
+                    {fs.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {org.pipelineStage === 'klar' && (
+            <button onClick={onBookMeeting} className={boldBtn}>
+              <Calendar className="w-4 h-4" />Book møte
+            </button>
+          )}
+
+          {/* Quick actions for Work Order */}
+          {onCreateWorkOrder && (
+            <div className="pt-1">
+              <button onClick={onCreateWorkOrder} className="w-full flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl font-medium text-sm py-2.5 px-3 transition-colors">
+                <Wrench className="w-4 h-4" />
+                Opprett oppdrag
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

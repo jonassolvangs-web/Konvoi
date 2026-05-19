@@ -33,22 +33,17 @@ interface MapViewProps {
   onUnitsFilterChange?: (v: string) => void;
 }
 
-// markerType -> emoji + background color
+// Pipeline-stage based marker config
 const markerConfig: Record<string, { emoji: string; bg: string }> = {
-  ikke_kontaktet:  { emoji: '📍', bg: '#9CA3AF' },    // Gray - uncontacted
-  ingen_svar:      { emoji: '❄️', bg: '#9CA3AF' },    // Gray - no answer
-  callback:        { emoji: '📞', bg: '#F59E0B' },    // Amber - callback
-  mail_sendt:      { emoji: '✉️', bg: '#8B5CF6' },    // Purple - mail sent
-  mote_booket:     { emoji: '📅', bg: '#3B82F6' },    // Blue - meeting booked
-  nei:             { emoji: '🚫', bg: '#EF4444' },    // Red - declined
-  besok_pagaar:    { emoji: '🔶', bg: '#F59E0B' },    // Yellow - visit in progress
-  venter_tekniker: { emoji: '🔧', bg: '#F97316' },    // Orange - waiting technician
-  rens_pagaar:     { emoji: '⚡', bg: '#EAB308' },     // Yellow - cleaning in progress
-  fullfort:        { emoji: '✅', bg: '#22C55E' },     // Green - completed
+  ikke_ringt:      { emoji: '📍', bg: '#6B7280' },
+  ringt_folg_opp:  { emoji: '📞', bg: '#EAB308' },
+  venter:          { emoji: '⏳', bg: '#F97316' },
+  videresendt:     { emoji: '✅', bg: '#3B82F6' },
+  klar:            { emoji: '🎯', bg: '#111827' },
 };
 
 function createEmojiIcon(markerType: string) {
-  const config = markerConfig[markerType] || markerConfig.ikke_kontaktet;
+  const config = markerConfig[markerType] || markerConfig.ikke_ringt;
   return L.divIcon({
     className: '',
     html: `<div style="
@@ -70,16 +65,10 @@ function createEmojiIcon(markerType: string) {
 }
 
 function getMarkerType(org: Organization, orgMarkerTypes?: Record<string, string>): string {
-  // If we have call-based marker info, use it
   if (orgMarkerTypes && orgMarkerTypes[org.id]) {
     return orgMarkerTypes[org.id];
   }
-
-  // Fall back to org status
-  if (org.status === 'mote_booket') return 'mote_booket';
-  if (org.status === 'fullfort') return 'mote_booket';
-
-  return 'ikke_kontaktet';
+  return 'ikke_ringt';
 }
 
 const buildYearOptions = [
@@ -100,10 +89,8 @@ export default function MapView({ organizations, statusFilter, onSelectOrg, orgM
   const filtered = organizations.filter((org) => {
     if (!org.latitude || !org.longitude) return false;
     if (statusFilter !== 'alle') {
-      const matchStatus = org.status === statusFilter;
       const matchMarker = orgMarkerTypes && orgMarkerTypes[org.id] === statusFilter;
-      const matchGroup = statusFilter === 'venter_tekniker' && (org.status === 'besok_pagaar' || org.status === 'rens_pagaar');
-      if (!matchStatus && !matchMarker && !matchGroup) return false;
+      if (!matchMarker) return false;
     }
     if (buildYearFilter !== 'alle' && org.buildingYear) {
       if (buildYearFilter === 'pre1970' && org.buildingYear >= 1970) return false;
