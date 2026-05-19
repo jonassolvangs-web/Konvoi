@@ -1065,31 +1065,37 @@ function PipelineCard({
       {/* Color top accent */}
       <div className="h-1" style={{ background: stage.color }} />
       <div className="p-4">
-        {/* Name + units */}
-        <div className="flex items-start justify-between gap-2 mb-1">
+        {/* Name */}
+        <div className="mb-1">
           {isEditingOrg ? (
             <input
               type="text"
               value={editFields.name}
               onChange={(e) => onEditFieldChange('name', e.target.value)}
-              className="text-[15px] font-semibold text-gray-900 leading-snug bg-white border border-gray-300 rounded-lg px-2 py-1 outline-none focus:border-blue-400 flex-1 min-w-0"
+              className="text-[15px] font-semibold text-gray-900 leading-snug bg-white border border-gray-300 rounded-lg px-2 py-1 outline-none focus:border-blue-400 w-full"
               style={{ fontSize: 16 }}
             />
           ) : (
             <h3 className="text-[15px] font-semibold text-gray-900 leading-snug">{org.name}</h3>
           )}
-          {org.numUnits && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-lg flex-shrink-0">
-              <Home className="w-3.5 h-3.5 text-gray-400" />
-              {org.numUnits}
-            </span>
-          )}
         </div>
         <p className="text-xs text-gray-600">{org.address}</p>
-        {org.buildingYear && (
-          <p className="text-[11px] text-gray-400 mb-3">Alder bygg: {new Date().getFullYear() - org.buildingYear} år ({org.buildingYear})</p>
+        {(org.numUnits || org.buildingYear) && (
+          <div className="flex items-center gap-2 mt-1.5 mb-3 flex-wrap">
+            {org.numUnits && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">
+                <Home className="w-3.5 h-3.5 text-gray-500" />
+                {org.numUnits} enheter
+              </span>
+            )}
+            {org.buildingYear && (
+              <span className="text-[11px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">
+                Byggeår {org.buildingYear} ({new Date().getFullYear() - org.buildingYear} år)
+              </span>
+            )}
+          </div>
         )}
-        {!org.buildingYear && <div className="mb-3" />}
+        {!org.numUnits && !org.buildingYear && <div className="mb-3" />}
 
         {/* Inline note */}
         <div className="mb-3">
