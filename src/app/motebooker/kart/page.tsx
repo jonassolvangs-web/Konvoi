@@ -932,6 +932,7 @@ Ventilasjonskonsulent
             feltselgere={feltselgere}
             stats={stats}
             onCallLogged={fetchData}
+            onSelectOrg={(org: any) => handleSelectOrg(org)}
           />
         )}
 
