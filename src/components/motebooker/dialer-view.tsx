@@ -532,29 +532,6 @@ Ventilasjonskonsulent
         </div>
       </div>
 
-      {/* ── Bottom action bar with emojis ── */}
-      <div className="shrink-0 border-t border-gray-100 bg-white px-2 py-2"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <div className="flex items-center justify-around max-w-lg mx-auto">
-          {[
-            { result: 'ikke_svar', emoji: '❄️', label: 'Ingen svar' },
-            { result: 'ring_tilbake', emoji: '📞', label: 'Callback' },
-            { result: 'mote_booket', emoji: '✅', label: 'Fullført' },
-            { result: 'nei', emoji: '🚫', label: 'Nei' },
-          ].map((btn) => (
-            <button
-              key={btn.result}
-              onClick={() => handleLogResult(btn.result)}
-              disabled={loggingResult}
-              className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl hover:bg-gray-50 active:scale-90 transition-all disabled:opacity-50"
-            >
-              <span className="text-2xl">{btn.emoji}</span>
-              <span className="text-[10px] text-gray-500 font-medium">{btn.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* ── Callback picker modal ── */}
       <Modal isOpen={showCallbackPicker} onClose={() => setShowCallbackPicker(false)} title="Planlegg oppfølging" size="lg">
         <div className="space-y-4">

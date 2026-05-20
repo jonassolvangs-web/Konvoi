@@ -1,7 +1,6 @@
 import {
   Map,
   MapPinned,
-  List,
   FileText,
   MessageSquare,
   ClipboardList,
@@ -20,8 +19,7 @@ import {
 
 export const motebookerTabs = [
   { id: 'kart', label: 'Kart', href: '/motebooker/kart', icon: Map },
-  { id: 'kalender', label: 'Kalender', href: '/motebooker/kalender', icon: Calendar },
-  { id: 'oversikt', label: 'Oversikt', href: '/motebooker/oversikt', icon: List },
+  { id: 'pipeline', label: 'Pipeline', href: '/motebooker/pipeline', icon: BarChart3 },
   { id: 'maler', label: 'Maler', href: '/motebooker/maler', icon: FileText },
   { id: 'chat', label: 'Chat', href: '/motebooker/chat', icon: MessageSquare },
   { id: 'profil', label: 'Profil', href: '/motebooker/profil', icon: User },
