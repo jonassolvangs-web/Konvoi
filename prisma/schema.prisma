@@ -57,6 +57,7 @@ model Organization {
   chairmanName          String?  @map("chairman_name")
   chairmanPhone         String?  @map("chairman_phone")
   chairmanEmail         String?  @map("chairman_email")
+  chairmanBirthNumber   String?  @map("chairman_birth_number")
   status                String   @default("ikke_tildelt") // OrgStatus
   notes                 String?
   isSameie              Boolean  @default(false) @map("is_sameie")

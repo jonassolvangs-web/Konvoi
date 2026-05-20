@@ -97,10 +97,6 @@ export default function KartPage() {
   const [emailBody, setEmailBody] = useState('');
   const [emailCopied, setEmailCopied] = useState(false);
 
-  // Map filter state
-  const [buildYearFilter, setBuildYearFilter] = useState('alle');
-  const [unitsFilter, setUnitsFilter] = useState('alle');
-
   // Inline notes state
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -108,7 +104,7 @@ export default function KartPage() {
 
   // Inline org edit state
   const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
-  const [editFields, setEditFields] = useState({ name: '', chairmanName: '', chairmanPhone: '', chairmanEmail: '' });
+  const [editFields, setEditFields] = useState({ name: '', address: '', chairmanName: '', chairmanPhone: '', chairmanEmail: '' });
   const [savingOrg, setSavingOrg] = useState(false);
 
   // Callback state
@@ -120,18 +116,25 @@ export default function KartPage() {
 
   const [loggingResult, setLoggingResult] = useState(false);
 
+  // Missing geo state
+  const [showMissingGeo, setShowMissingGeo] = useState(false);
+
   // Delete org state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   // Manual address state
   const [showAddAddress, setShowAddAddress] = useState(false);
+  const [manualName, setManualName] = useState('');
   const [manualAddress, setManualAddress] = useState('');
   const [manualPostal, setManualPostal] = useState('');
   const [manualCity, setManualCity] = useState('');
+  const [manualNumUnits, setManualNumUnits] = useState('');
+  const [manualBuildingYear, setManualBuildingYear] = useState('');
   const [manualChairmanName, setManualChairmanName] = useState('');
   const [manualChairmanPhone, setManualChairmanPhone] = useState('');
   const [manualChairmanEmail, setManualChairmanEmail] = useState('');
+  const [manualChairmanBirthNumber, setManualChairmanBirthNumber] = useState('');
   const [manualNote, setManualNote] = useState('');
   const [addingAddress, setAddingAddress] = useState(false);
 
@@ -526,6 +529,9 @@ Ventilasjonskonsulent
       if (editFields.chairmanPhone.trim() !== (selectedOrg.chairmanPhone || '')) diff.chairmanPhone = editFields.chairmanPhone.trim();
       if (editFields.chairmanEmail.trim() !== (selectedOrg.chairmanEmail || '')) diff.chairmanEmail = editFields.chairmanEmail.trim();
 
+      const addressChanged = editFields.address.trim() !== (selectedOrg.address || '');
+      if (addressChanged) diff.address = editFields.address.trim();
+
       if (Object.keys(diff).length === 0) {
         setEditingOrgId(null);
         return;
@@ -537,6 +543,13 @@ Ventilasjonskonsulent
         body: JSON.stringify(diff),
       });
       if (!res.ok) throw new Error();
+
+      // Re-geocode if address changed
+      if (addressChanged) {
+        toast('Geokoder ny adresse...', { icon: '📍' });
+        await fetch(`/api/organizations/${selectedOrg.id}/geocode`, { method: 'POST' });
+      }
+
       toast.success('Oppdatert');
       setEditingOrgId(null);
       fetchData();
@@ -654,14 +667,16 @@ Ventilasjonskonsulent
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: manualChairmanName.trim() || fullAddress,
+          name: manualName.trim() || manualChairmanName.trim() || fullAddress,
           address: manualAddress.trim(),
           postalCode: manualPostal.trim() || undefined,
           city: manualCity.trim() || undefined,
-          numUnits: 1,
+          numUnits: manualNumUnits ? parseInt(manualNumUnits, 10) : 1,
+          buildingYear: manualBuildingYear ? parseInt(manualBuildingYear, 10) : undefined,
           chairmanName: manualChairmanName.trim() || undefined,
           chairmanPhone: manualChairmanPhone.trim() || undefined,
           chairmanEmail: manualChairmanEmail.trim() || undefined,
+          chairmanBirthNumber: manualChairmanBirthNumber.trim() || undefined,
         }),
       });
       if (!res.ok) throw new Error();
@@ -686,12 +701,16 @@ Ventilasjonskonsulent
         toast.success('Adresse lagt til');
       }
       setShowAddAddress(false);
+      setManualName('');
       setManualAddress('');
       setManualPostal('');
       setManualCity('');
+      setManualNumUnits('');
+      setManualBuildingYear('');
       setManualChairmanName('');
       setManualChairmanPhone('');
       setManualChairmanEmail('');
+      setManualChairmanBirthNumber('');
       setManualNote('');
       fetchData();
     } catch {
@@ -823,34 +842,63 @@ Ventilasjonskonsulent
         </div>
       </div>
 
-      {/* Addresses without coordinates warning */}
+      {/* Addresses without coordinates warning + fix */}
       {view === 'kart' && organizations.some((o) => !o.latitude || !o.longitude) && (
-        <div className="px-4 pb-2">
+        <div className="px-4 pb-2 space-y-2">
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center justify-between">
             <span className="text-xs text-amber-700">
               {organizations.filter((o) => !o.latitude || !o.longitude).length} adresse(r) mangler koordinater
             </span>
             <button
-              onClick={async () => {
-                toast('Geokoder manglende adresser...', { icon: '🔄' });
-                try {
-                  const res = await fetch('/api/admin/geocode-missing', { method: 'POST' });
-                  const data = await res.json();
-                  if (data.geocoded > 0) {
-                    toast.success(`${data.geocoded} adresse(r) geokodet`);
-                    fetchData();
-                  } else {
-                    toast('Ingen nye adresser ble geokodet', { icon: '⚠️' });
-                  }
-                } catch {
-                  toast.error('Kunne ikke geokode');
-                }
-              }}
+              onClick={() => setShowMissingGeo((v) => !v)}
               className="text-xs font-medium text-amber-800 bg-amber-100 px-2.5 py-1 rounded-lg hover:bg-amber-200 transition-colors"
             >
-              Prøv igjen
+              {showMissingGeo ? 'Skjul' : 'Vis / fiks'}
             </button>
           </div>
+          {showMissingGeo && (
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {organizations.filter((o) => !o.latitude || !o.longitude).map((org) => (
+                <div key={org.id} className="bg-white border border-amber-200 rounded-xl px-3 py-2.5 space-y-2">
+                  <p className="text-sm font-semibold text-gray-900">{org.name}</p>
+                  <p className="text-xs text-gray-500">{org.address}</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Skriv riktig adresse..."
+                      defaultValue={org.address}
+                      id={`fix-addr-${org.id}`}
+                      className="flex-1 text-sm bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 outline-none focus:border-blue-400"
+                      style={{ fontSize: 16 }}
+                    />
+                    <button
+                      onClick={async () => {
+                        const input = document.getElementById(`fix-addr-${org.id}`) as HTMLInputElement;
+                        const newAddr = input?.value?.trim();
+                        if (!newAddr) { toast.error('Skriv inn en adresse'); return; }
+                        toast('Lagrer og geokoder...', { icon: '📍' });
+                        try {
+                          await fetch(`/api/organizations/${org.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ address: newAddr }),
+                          });
+                          await fetch(`/api/organizations/${org.id}/geocode`, { method: 'POST' });
+                          toast.success('Adresse oppdatert og geokodet');
+                          fetchData();
+                        } catch {
+                          toast.error('Kunne ikke geokode adressen');
+                        }
+                      }}
+                      className="px-3 py-2 bg-black text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors flex-shrink-0"
+                    >
+                      Lagre
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -862,10 +910,6 @@ Ventilasjonskonsulent
             statusFilter="alle"
             onSelectOrg={(org: any) => handleSelectOrg(org)}
             orgMarkerTypes={orgMarkerTypes}
-            buildYearFilter={buildYearFilter}
-            unitsFilter={unitsFilter}
-            onBuildYearFilterChange={setBuildYearFilter}
-            onUnitsFilterChange={setUnitsFilter}
           />
         ) : (
           <DialerView
@@ -891,6 +935,7 @@ Ventilasjonskonsulent
               setEditingOrgId(id);
               setEditFields({
                 name: selectedOrg.name || '',
+                address: selectedOrg.address || '',
                 chairmanName: selectedOrg.chairmanName || '',
                 chairmanPhone: selectedOrg.chairmanPhone || '',
                 chairmanEmail: selectedOrg.chairmanEmail || '',
@@ -1206,8 +1251,14 @@ Ventilasjonskonsulent
       </Modal>
 
       {/* ── Add address modal ── */}
-      <Modal isOpen={showAddAddress} onClose={() => setShowAddAddress(false)} title="Legg til adresse manuelt">
+      <Modal isOpen={showAddAddress} onClose={() => setShowAddAddress(false)} title="Legg til sameie manuelt">
         <div className="space-y-3">
+          <Input
+            label="Navn på sameie"
+            placeholder="F.eks. Gydas gate 16 Sameie"
+            value={manualName}
+            onChange={(e) => setManualName(e.target.value)}
+          />
           <Input
             label="Adresse *"
             placeholder="F.eks. Gydas gate 16"
@@ -1228,14 +1279,37 @@ Ventilasjonskonsulent
               onChange={(e) => setManualCity(e.target.value)}
             />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Antall enheter"
+              type="number"
+              placeholder="F.eks. 24"
+              value={manualNumUnits}
+              onChange={(e) => setManualNumUnits(e.target.value)}
+            />
+            <Input
+              label="Byggeår"
+              type="number"
+              placeholder="F.eks. 1985"
+              value={manualBuildingYear}
+              onChange={(e) => setManualBuildingYear(e.target.value)}
+            />
+          </div>
           <div className="border-t border-gray-100 pt-3">
-            <p className="text-xs font-medium text-gray-500 uppercase mb-2">Beboer</p>
+            <p className="text-xs font-medium text-gray-500 uppercase mb-2">Styreleder / kontaktperson</p>
             <div className="space-y-3">
               <Input
                 label="Navn"
                 placeholder="Ola Nordmann"
                 value={manualChairmanName}
                 onChange={(e) => setManualChairmanName(e.target.value)}
+              />
+              <Input
+                label="Fødselsår"
+                type="number"
+                placeholder="F.eks. 1947"
+                value={manualChairmanBirthNumber}
+                onChange={(e) => setManualChairmanBirthNumber(e.target.value)}
               />
               <div className="grid grid-cols-2 gap-3">
                 <Input

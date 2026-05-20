@@ -37,12 +37,16 @@ export default function AdresserPage() {
 
   // Manual address state
   const [showAddAddress, setShowAddAddress] = useState(false);
+  const [manualName, setManualName] = useState('');
   const [manualAddress, setManualAddress] = useState('');
   const [manualPostal, setManualPostal] = useState('');
   const [manualCity, setManualCity] = useState('');
+  const [manualNumUnits, setManualNumUnits] = useState('');
+  const [manualBuildingYear, setManualBuildingYear] = useState('');
   const [manualChairmanName, setManualChairmanName] = useState('');
   const [manualChairmanPhone, setManualChairmanPhone] = useState('');
   const [manualChairmanEmail, setManualChairmanEmail] = useState('');
+  const [manualChairmanBirthNumber, setManualChairmanBirthNumber] = useState('');
   const [manualNote, setManualNote] = useState('');
   const [manualAssignTo, setManualAssignTo] = useState('');
   const [addingAddress, setAddingAddress] = useState(false);
@@ -132,14 +136,16 @@ export default function AdresserPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: manualChairmanName.trim() || fullAddress,
+          name: manualName.trim() || manualChairmanName.trim() || fullAddress,
           address: manualAddress.trim(),
           postalCode: manualPostal.trim() || undefined,
           city: manualCity.trim() || undefined,
-          numUnits: 1,
+          numUnits: manualNumUnits ? parseInt(manualNumUnits, 10) : 1,
+          buildingYear: manualBuildingYear ? parseInt(manualBuildingYear, 10) : undefined,
           chairmanName: manualChairmanName.trim() || undefined,
           chairmanPhone: manualChairmanPhone.trim() || undefined,
           chairmanEmail: manualChairmanEmail.trim() || undefined,
+          chairmanBirthNumber: manualChairmanBirthNumber.trim() || undefined,
         }),
       });
       if (!res.ok) throw new Error();
@@ -161,12 +167,16 @@ export default function AdresserPage() {
 
       toast.success('Adresse lagt til');
       setShowAddAddress(false);
+      setManualName('');
       setManualAddress('');
       setManualPostal('');
       setManualCity('');
+      setManualNumUnits('');
+      setManualBuildingYear('');
       setManualChairmanName('');
       setManualChairmanPhone('');
       setManualChairmanEmail('');
+      setManualChairmanBirthNumber('');
       setManualNote('');
       setManualAssignTo('');
       fetchData();
@@ -271,8 +281,14 @@ export default function AdresserPage() {
         </div>
       </Modal>
 
-      <Modal isOpen={showAddAddress} onClose={() => setShowAddAddress(false)} title="Legg til adresse manuelt">
+      <Modal isOpen={showAddAddress} onClose={() => setShowAddAddress(false)} title="Legg til sameie manuelt">
         <div className="space-y-3">
+          <Input
+            label="Navn på sameie"
+            placeholder="F.eks. Gydas gate 16 Sameie"
+            value={manualName}
+            onChange={(e) => setManualName(e.target.value)}
+          />
           <Input
             label="Adresse *"
             placeholder="F.eks. Gydas gate 16"
@@ -293,14 +309,37 @@ export default function AdresserPage() {
               onChange={(e) => setManualCity(e.target.value)}
             />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Antall enheter"
+              type="number"
+              placeholder="F.eks. 24"
+              value={manualNumUnits}
+              onChange={(e) => setManualNumUnits(e.target.value)}
+            />
+            <Input
+              label="Byggeår"
+              type="number"
+              placeholder="F.eks. 1985"
+              value={manualBuildingYear}
+              onChange={(e) => setManualBuildingYear(e.target.value)}
+            />
+          </div>
           <div className="border-t border-gray-100 pt-3">
-            <p className="text-xs font-medium text-gray-500 uppercase mb-2">Kontaktperson</p>
+            <p className="text-xs font-medium text-gray-500 uppercase mb-2">Styreleder / kontaktperson</p>
             <div className="space-y-3">
               <Input
                 label="Navn"
                 placeholder="Ola Nordmann"
                 value={manualChairmanName}
                 onChange={(e) => setManualChairmanName(e.target.value)}
+              />
+              <Input
+                label="Fødselsår"
+                type="number"
+                placeholder="F.eks. 1947"
+                value={manualChairmanBirthNumber}
+                onChange={(e) => setManualChairmanBirthNumber(e.target.value)}
               />
               <div className="grid grid-cols-2 gap-3">
                 <Input

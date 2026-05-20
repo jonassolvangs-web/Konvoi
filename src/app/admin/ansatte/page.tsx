@@ -69,6 +69,10 @@ export default function AnsattePage() {
       toast.error('Passord er påkrevd');
       return;
     }
+    if (form.password && form.password.length < 6) {
+      toast.error('Passord må være minst 6 tegn');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -82,6 +86,12 @@ export default function AnsattePage() {
 
       if (!res.ok) {
         const data = await res.json();
+        if (data.details?.fieldErrors) {
+          const labels: Record<string, string> = { name: 'Navn', email: 'E-post', password: 'Passord', roles: 'Roller', phone: 'Telefon' };
+          const messages = Object.entries(data.details.fieldErrors)
+            .map(([field, errors]) => `${labels[field] || field}: ${(errors as string[]).join(', ')}`);
+          throw new Error(messages.join('. '));
+        }
         throw new Error(data.error);
       }
 

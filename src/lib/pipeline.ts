@@ -12,7 +12,7 @@ export interface PipelineStage {
 }
 
 export const PIPELINE_STAGES: PipelineStage[] = [
-  { key: 'ikke_ringt', label: 'Ikke ringt', short: 'Ikke ringt', emoji: '\u{1F4CD}', color: '#6B7280', colorLight: '#F3F4F6', colorMid: '#E5E7EB', text: '#374151' },
+  { key: 'ikke_ringt', label: 'Ikke ringt', short: 'Ikke ringt', emoji: '\u260E\uFE0F', color: '#6B7280', colorLight: '#F3F4F6', colorMid: '#E5E7EB', text: '#374151' },
   { key: 'ringt_folg_opp', label: 'Ringt \u2014 f\u00f8lg opp', short: 'F\u00f8lg opp', emoji: '\u{1F4DE}', color: '#EAB308', colorLight: '#FEF9C3', colorMid: '#FDE68A', text: '#854D0E' },
   { key: 'venter', label: 'Venter p\u00e5 videresending', short: 'Venter', emoji: '\u23F3', color: '#F97316', colorLight: '#FFEDD5', colorMid: '#FDBA74', text: '#9A3412' },
   { key: 'videresendt', label: 'Mail videresendt', short: 'Videresendt', emoji: '\u2705', color: '#3B82F6', colorLight: '#DBEAFE', colorMid: '#93C5FD', text: '#1E40AF' },

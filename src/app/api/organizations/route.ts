@@ -19,6 +19,7 @@ const createOrgSchema = z.object({
   chairmanName: z.string().optional(),
   chairmanPhone: z.string().optional(),
   chairmanEmail: z.string().optional(),
+  chairmanBirthNumber: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
