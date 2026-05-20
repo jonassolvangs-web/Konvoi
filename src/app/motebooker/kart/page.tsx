@@ -439,9 +439,10 @@ Sender som avtalt over informasjon rundt Ventilasjonsrens.
 Tilbudet gjelder alle boenheter, og det er opp til hver enkelt beboer om de ønsker å benytte seg av det.
 
 Gratis befaring
-Som en del av tjenesten tilbyr vi en uforpliktende befaringsrunde. Det tar 5–10 minutter per boenhet, og gir beboerne mulighet til å se tilstanden på sitt anlegg før de eventuelt bestiller rens. På befaringen vurderer vi om det faktisk er behov for rens — vi anbefaler ikke jobben hvis anlegget er i god stand.
+Som en del av tjenesten tilbyr vi en uforpliktende befaringsrunde. Det tar 5–10 minutter per boenhet, og gir beboerne mulighet til å se tilstanden på sitt anlegg før de eventuelt bestiller rens. På befaringen vurderer vi om det faktisk er behov for rens — vi anbefaler ikke jobben hvis anlegget er i god stand. Vi har tid til å komme (DAG OG DATO som vi blir enige om) mellom for eksempel kl. 17–20. Da må alle som ønsker befaring være hjemme.
 
-Pris - Rens av ventilasjonsanlegg: kr 4 990,- inkl. mva per boenhet (ordinærpris kr 6 990,-)
+Pris
+Rens av ventilasjonsanlegg: kr 4 990,- inkl. mva per boenhet (ordinærpris kr 6 990,-)
 
 Hva inngår i en rens?
 Vi renser ventilasjonsanlegget i hver enkelt boenhet. Ventiler demonteres og rengjøres, og kanalsystemet renses mekanisk med børste helt ut til tilkoblingspunktet mot fellesanlegget. Hver beboer mottar en komplett inspeksjonsrapport med før- og etter-bilder på e-post.
@@ -452,13 +453,7 @@ Hvorfor rense ventilasjonsanlegget?
 • Reduserer risiko for slitasjeskader og gir et mer energieffektivt anlegg
 • Kan forlenge anleggets levetid med flere år
 
-Dato for Gratis befaring
-Når vi finner en dato som passer, så har vi en ferdig e-postmal/flyer vi kan sende over, som enkelt kan videresendes til beboerne :)
-
-Med vennlig hilsen
-Jonas Anker Solvang
-Ventilasjonskonsulent
-47 88 92 46`
+Ta gjerne kontakt om dere har spørsmål.`
       );
     }
     setEmailCopied(false);
@@ -743,7 +738,7 @@ Ventilasjonskonsulent
     {
       label: 'Info ventilasjonsrens',
       getSubject: (name: string) => `Ventilasjonsrens — ${name}`,
-      getBody: (_name: string) => `Hei,\n\nSender som avtalt over informasjon rundt Ventilasjonsrens.\n\nTilbudet gjelder alle boenheter, og det er opp til hver enkelt beboer om de ønsker å benytte seg av det.\n\nGratis befaring\nSom en del av tjenesten tilbyr vi en uforpliktende befaringsrunde. Det tar 5–10 minutter per boenhet, og gir beboerne mulighet til å se tilstanden på sitt anlegg før de eventuelt bestiller rens. På befaringen vurderer vi om det faktisk er behov for rens — vi anbefaler ikke jobben hvis anlegget er i god stand.\n\nPris - Rens av ventilasjonsanlegg: kr 4 990,- inkl. mva per boenhet (ordinærpris kr 6 990,-)\n\nHva inngår i en rens?\nVi renser ventilasjonsanlegget i hver enkelt boenhet. Ventiler demonteres og rengjøres, og kanalsystemet renses mekanisk med børste helt ut til tilkoblingspunktet mot fellesanlegget. Hver beboer mottar en komplett inspeksjonsrapport med før- og etter-bilder på e-post.\n\nHvorfor rense ventilasjonsanlegget?\n• Norges Astma- og Allergiforbund anbefaler rens minimum hvert 3–5. år\n• Brannvesenet anbefaler jevnlig rens av hensyn til brannsikkerhet\n• Reduserer risiko for slitasjeskader og gir et mer energieffektivt anlegg\n• Kan forlenge anleggets levetid med flere år\n\nDato for Gratis befaring\nNår vi finner en dato som passer, så har vi en ferdig e-postmal/flyer vi kan sende over, som enkelt kan videresendes til beboerne :)\n\nMed vennlig hilsen\nJonas Anker Solvang\nVentilasjonskonsulent\n47 88 92 46`,
+      getBody: (_name: string) => `Hei,\n\nSender som avtalt over informasjon rundt Ventilasjonsrens.\n\nTilbudet gjelder alle boenheter, og det er opp til hver enkelt beboer om de ønsker å benytte seg av det.\n\nGratis befaring\nSom en del av tjenesten tilbyr vi en uforpliktende befaringsrunde. Det tar 5–10 minutter per boenhet, og gir beboerne mulighet til å se tilstanden på sitt anlegg før de eventuelt bestiller rens. På befaringen vurderer vi om det faktisk er behov for rens — vi anbefaler ikke jobben hvis anlegget er i god stand. Vi har tid til å komme (DAG OG DATO som vi blir enige om) mellom for eksempel kl. 17–20. Da må alle som ønsker befaring være hjemme.\n\nPris\nRens av ventilasjonsanlegg: kr 4 990,- inkl. mva per boenhet (ordinærpris kr 6 990,-)\n\nHva inngår i en rens?\nVi renser ventilasjonsanlegget i hver enkelt boenhet. Ventiler demonteres og rengjøres, og kanalsystemet renses mekanisk med børste helt ut til tilkoblingspunktet mot fellesanlegget. Hver beboer mottar en komplett inspeksjonsrapport med før- og etter-bilder på e-post.\n\nHvorfor rense ventilasjonsanlegget?\n• Norges Astma- og Allergiforbund anbefaler rens minimum hvert 3–5. år\n• Brannvesenet anbefaler jevnlig rens av hensyn til brannsikkerhet\n• Reduserer risiko for slitasjeskader og gir et mer energieffektivt anlegg\n• Kan forlenge anleggets levetid med flere år\n\nTa gjerne kontakt om dere har spørsmål.`,
     },
     {
       label: 'Oppfølging',
