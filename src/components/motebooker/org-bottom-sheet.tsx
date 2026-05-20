@@ -185,7 +185,23 @@ export default function OrgBottomSheet({
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-500">{org.address}</p>
+            {isEditingOrg ? (
+              <input
+                type="text"
+                value={editFields.address}
+                onChange={(e) => onEditFieldChange('address', e.target.value)}
+                className="text-xs text-gray-700 bg-white border border-gray-300 rounded-lg px-2 py-1 outline-none focus:border-blue-400 w-full mt-1"
+                style={{ fontSize: 16 }}
+                placeholder="Adresse"
+              />
+            ) : (
+              <button
+                onClick={() => onEditOrg(org.id)}
+                className="text-xs text-gray-500 text-left hover:text-blue-600 transition-colors"
+              >
+                {org.address}
+              </button>
+            )}
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
               {org.distanceFromOfficeKm != null && org.distanceFromOfficeMin != null && (
                 <span className="flex items-center gap-1">
@@ -244,16 +260,7 @@ export default function OrgBottomSheet({
           {/* Chairman section with inline editing */}
           {isEditingOrg ? (
             <div className="bg-gray-50 border border-gray-300 rounded-lg px-3 py-3 space-y-2">
-              <p className="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Adresse</p>
-              <input
-                type="text"
-                placeholder="Adresse"
-                value={editFields.address}
-                onChange={(e) => onEditFieldChange('address', e.target.value)}
-                className="w-full text-sm bg-white border border-gray-300 rounded-lg px-2.5 py-2 outline-none focus:border-blue-400"
-                style={{ fontSize: 16 }}
-              />
-              <p className="text-[9px] uppercase tracking-wider text-gray-500 font-bold pt-1">Styreleder</p>
+              <p className="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Styreleder</p>
               <input
                 type="text"
                 placeholder="Navn"
