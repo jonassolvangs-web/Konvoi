@@ -32,6 +32,7 @@ interface Organization {
   chairmanName: string | null;
   chairmanPhone: string | null;
   chairmanEmail: string | null;
+  chairmanBirthNumber: string | null;
   distanceFromOfficeKm: number | null;
   distanceFromOfficeMin: number | null;
   assignedToId: string | null;

@@ -20,6 +20,7 @@ interface Organization {
   chairmanName: string | null;
   chairmanPhone: string | null;
   chairmanEmail: string | null;
+  chairmanBirthNumber: string | null;
   distanceFromOfficeKm: number | null;
   distanceFromOfficeMin: number | null;
   notes: string | null;
@@ -446,6 +447,9 @@ Ventilasjonskonsulent
             <div className="min-w-0 flex-1">
               <p className="text-[9px] uppercase tracking-wider text-gray-500 font-bold mb-0.5">Styreleder</p>
               <p className="text-sm font-semibold text-gray-900">{org.chairmanName}</p>
+              {org.chairmanBirthNumber && (
+                <p className="text-[11px] text-gray-500">f. {org.chairmanBirthNumber}</p>
+              )}
               {org.chairmanPhone && (
                 <div className="flex items-center gap-1.5">
                   <a href={`tel:${org.chairmanPhone}`} className="text-xs text-blue-600">
