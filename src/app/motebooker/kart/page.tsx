@@ -894,6 +894,21 @@ Ventilasjonskonsulent
                     >
                       Lagre
                     </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Slette ${org.name}?`)) return;
+                        try {
+                          await fetch(`/api/organizations/${org.id}`, { method: 'DELETE' });
+                          toast.success('Adresse slettet');
+                          fetchData();
+                        } catch {
+                          toast.error('Kunne ikke slette');
+                        }
+                      }}
+                      className="px-3 py-2 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors flex-shrink-0"
+                    >
+                      Slett
+                    </button>
                   </div>
                 </div>
               ))}

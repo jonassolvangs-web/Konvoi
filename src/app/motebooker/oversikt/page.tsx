@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import SearchBar from '@/components/ui/search-bar';
 import FilterChips from '@/components/ui/filter-chips';
 import Card from '@/components/ui/card';
@@ -31,6 +32,8 @@ interface Callback {
 }
 
 export default function OversiktPage() {
+  const { data: session } = useSession();
+  const userId = (session?.user as any)?.id;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('alle');
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -38,9 +41,10 @@ export default function OversiktPage() {
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
+    if (!userId) return;
     try {
       const [orgRes, callRes] = await Promise.all([
-        fetch('/api/organizations?limit=500'),
+        fetch(`/api/organizations?limit=500&assignedTo=${userId}`),
         fetch('/api/calls'),
       ]);
       const orgData = await orgRes.json();
@@ -63,7 +67,7 @@ export default function OversiktPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     fetchData();
