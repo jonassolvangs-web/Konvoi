@@ -303,7 +303,12 @@ export default function OrgBottomSheet({
             <div className="flex items-center justify-between bg-gray-100 border border-gray-300 rounded-lg px-3 py-2.5">
               <div className="min-w-0 flex-1">
                 <p className="text-[9px] uppercase tracking-wider text-gray-500 font-bold mb-0.5">Styreleder</p>
-                <p className="text-sm font-semibold text-gray-900">{org.chairmanName}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-semibold text-gray-900">{org.chairmanName}</p>
+                  <button onClick={() => copyToClipboard(org.chairmanName!)} className="p-0.5 rounded hover:bg-gray-200">
+                    <Copy className="h-3 w-3 text-gray-400" />
+                  </button>
+                </div>
                 {org.chairmanBirthNumber && (
                   <p className="text-[11px] text-gray-500">f. {org.chairmanBirthNumber}</p>
                 )}
