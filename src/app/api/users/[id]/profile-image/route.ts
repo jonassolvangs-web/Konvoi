@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { uploadFile, deleteFile, extractPathFromUrl } from '@/lib/supabase-storage';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
@@ -22,7 +23,12 @@ export async function GET(
       return new NextResponse(null, { status: 404 });
     }
 
-    // If it's a base64 data URL, serve as image
+    // If it's a Supabase/HTTPS URL, redirect
+    if (user.profileImageUrl.startsWith('http')) {
+      return NextResponse.redirect(user.profileImageUrl);
+    }
+
+    // Legacy: base64 data URL → serve as image
     if (user.profileImageUrl.startsWith('data:')) {
       const match = user.profileImageUrl.match(/^data:(image\/\w+);base64,(.+)$/);
       if (!match) return new NextResponse(null, { status: 404 });
@@ -38,8 +44,7 @@ export async function GET(
       });
     }
 
-    // Legacy: redirect to file URL
-    return NextResponse.redirect(user.profileImageUrl);
+    return new NextResponse(null, { status: 404 });
   } catch {
     return new NextResponse(null, { status: 500 });
   }
@@ -76,17 +81,19 @@ export async function POST(
       return NextResponse.json({ error: 'Filen er for stor. Maks 2MB.' }, { status: 400 });
     }
 
-    // Store as base64 in database
+    // Upload to Supabase Storage
+    const ext = file.name.split('.').pop() || 'jpg';
+    const storagePath = `${id}.${ext}`;
     const buffer = Buffer.from(await file.arrayBuffer());
-    const base64 = buffer.toString('base64');
-    const dataUrl = `data:${file.type};base64,${base64}`;
+
+    const publicUrl = await uploadFile('avatars', storagePath, buffer, file.type);
 
     await prisma.user.update({
       where: { id },
-      data: { profileImageUrl: dataUrl },
+      data: { profileImageUrl: publicUrl },
     });
 
-    // Return a URL that serves the image via GET endpoint (not the base64 itself)
+    // Return proxy URL for backward compat with session.update()
     const profileImageUrl = `/api/users/${id}/profile-image?v=${Date.now()}`;
 
     return NextResponse.json({ profileImageUrl });
@@ -109,6 +116,23 @@ export async function DELETE(
 
     if (session.user.id !== id) {
       return NextResponse.json({ error: 'Ingen tilgang' }, { status: 403 });
+    }
+
+    // Try to delete from Supabase Storage if it's a Supabase URL
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { profileImageUrl: true },
+    });
+
+    if (user?.profileImageUrl?.startsWith('http')) {
+      const storagePath = extractPathFromUrl(user.profileImageUrl, 'avatars');
+      if (storagePath) {
+        try {
+          await deleteFile('avatars', storagePath);
+        } catch {
+          // Non-critical: file may already be deleted
+        }
+      }
     }
 
     await prisma.user.update({

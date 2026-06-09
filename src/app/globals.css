@@ -152,6 +152,27 @@ html, body {
   animation: slide-up 0.3s ease-out;
 }
 
+@keyframes slideUpCard {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-animate {
+  animation: slideUpCard 0.25s ease-out both;
+}
+
+.card-animate:nth-child(2) { animation-delay: 0.04s; }
+.card-animate:nth-child(3) { animation-delay: 0.08s; }
+.card-animate:nth-child(4) { animation-delay: 0.12s; }
+.card-animate:nth-child(5) { animation-delay: 0.16s; }
+.card-animate:nth-child(6) { animation-delay: 0.20s; }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

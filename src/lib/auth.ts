@@ -32,7 +32,9 @@ export const authOptions: NextAuthOptions = {
           roles,
           activeRole: user.activeRole || roles[0],
           profileImageUrl: user.profileImageUrl
-            ? `/api/users/${user.id}/profile-image?v=${Date.now()}`
+            ? user.profileImageUrl.startsWith('http')
+              ? user.profileImageUrl
+              : `/api/users/${user.id}/profile-image?v=${Date.now()}`
             : null,
         };
       },

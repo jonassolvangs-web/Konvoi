@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { uploadFile } from '@/lib/supabase-storage';
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,14 +27,9 @@ export async function POST(req: NextRequest) {
 
     const ext = file.name.split('.').pop() || 'jpg';
     const fileName = `${unitId}-${type}.${ext}`;
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'work-orders');
-
-    await mkdir(uploadDir, { recursive: true });
-
     const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(path.join(uploadDir, fileName), buffer);
 
-    const url = `/uploads/work-orders/${fileName}`;
+    const url = await uploadFile('work-orders', fileName, buffer, file.type);
     return NextResponse.json({ url });
   } catch (error: any) {
     if (error.message === 'Ikke autentisert') {

@@ -53,6 +53,17 @@ export function generateGreetingHtml(data: GreetingData): string {
   `;
 }
 
+/**
+ * Resolve a photo URL to an absolute URL for use in reports.
+ * Handles: data: URIs (legacy), http URLs (Supabase Storage), relative paths (legacy /uploads/).
+ */
+function resolvePhotoUrl(url: string | null, baseUrl: string): string | null {
+  if (!url) return null;
+  if (url.startsWith('data:')) return url;
+  if (url.startsWith('http')) return url;
+  return baseUrl + url;
+}
+
 export function generateReportHtml(data: ReportData, baseUrl: string): string {
   const darkBlue = '#1e2a3a';
 
@@ -102,11 +113,11 @@ export function generateReportHtml(data: ReportData, baseUrl: string): string {
           <tr>
             <td style="width: 50%; vertical-align: top; padding-right: 8px;">
               <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin: 0 0 6px;">F&oslash;r rens</p>
-              ${unit.photoBeforeUrl ? `<img src="${unit.photoBeforeUrl.startsWith('data:') ? unit.photoBeforeUrl : baseUrl + unit.photoBeforeUrl}" alt="Før rens" style="width: 100%; height: 300px; object-fit: cover; border-radius: 6px; border: 1px solid #e0e0e0;" />` : '<div style="height: 160px; background: #f0f0f0; border-radius: 6px; border: 1px solid #e0e0e0;"></div>'}
+              ${unit.photoBeforeUrl ? `<img src="${resolvePhotoUrl(unit.photoBeforeUrl, baseUrl)}" alt="Før rens" style="width: 100%; height: 300px; object-fit: cover; border-radius: 6px; border: 1px solid #e0e0e0;" />` : '<div style="height: 160px; background: #f0f0f0; border-radius: 6px; border: 1px solid #e0e0e0;"></div>'}
             </td>
             <td style="width: 50%; vertical-align: top; padding-left: 8px;">
               <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin: 0 0 6px;">Etter rens</p>
-              ${unit.photoAfterUrl ? `<img src="${unit.photoAfterUrl.startsWith('data:') ? unit.photoAfterUrl : baseUrl + unit.photoAfterUrl}" alt="Etter rens" style="width: 100%; height: 300px; object-fit: cover; border-radius: 6px; border: 1px solid #e0e0e0;" />` : '<div style="height: 160px; background: #f0f0f0; border-radius: 6px; border: 1px solid #e0e0e0;"></div>'}
+              ${unit.photoAfterUrl ? `<img src="${resolvePhotoUrl(unit.photoAfterUrl, baseUrl)}" alt="Etter rens" style="width: 100%; height: 300px; object-fit: cover; border-radius: 6px; border: 1px solid #e0e0e0;" />` : '<div style="height: 160px; background: #f0f0f0; border-radius: 6px; border: 1px solid #e0e0e0;"></div>'}
             </td>
           </tr>
         </table>

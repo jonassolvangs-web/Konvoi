@@ -150,6 +150,8 @@ export const callResultConfig: Record<string, { label: string; color: string }> 
   ikke_svar: { label: 'Ikke svar', color: 'bg-gray-100 text-gray-700' },
   ring_tilbake: { label: 'Ring tilbake', color: 'bg-yellow-100 text-yellow-700' },
   nei: { label: 'Nei', color: 'bg-red-100 text-red-600' },
+  mail_sendt: { label: 'Mail sendt', color: 'bg-blue-100 text-blue-700' },
+  videresendt: { label: 'Videresendt', color: 'bg-indigo-100 text-indigo-700' },
 };
 
 export const reminderStatusConfig: Record<string, { label: string; color: string }> = {

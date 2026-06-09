@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 
 const registerCallSchema = z.object({
   organizationId: z.string(),
-  result: z.enum(['mote_booket', 'ikke_svar', 'ring_tilbake', 'nei', 'mail_sendt']),
+  result: z.enum(['mote_booket', 'ikke_svar', 'ring_tilbake', 'nei', 'mail_sendt', 'videresendt']),
   notes: z.string().optional(),
   callbackAt: z.string().optional(),
   duration: z.number().optional(),

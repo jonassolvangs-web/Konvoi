@@ -332,14 +332,29 @@ export default function TeknikerOppdragDetailPage() {
     const key = `${type}-${unitId}`;
     setUploadingPhoto(key);
     try {
+      // Compress image for bandwidth saving
       const dataUri = await compressImage(file);
 
+      // Convert compressed data URI to Blob for FormData upload
+      const response = await fetch(dataUri);
+      const blob = await response.blob();
+
+      const formData = new FormData();
+      formData.append('file', blob, `${unitId}-${type}.jpg`);
+      formData.append('type', type);
+      formData.append('unitId', unitId);
+
+      const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+      const uploadResult = await uploadRes.json();
+      if (uploadResult.error) throw new Error(uploadResult.error);
+
+      // Save the returned Supabase URL to the work order unit
       const res = await fetch(`/api/work-orders/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           unitId,
-          [type === 'before' ? 'photoBeforeUrl' : 'photoAfterUrl']: dataUri,
+          [type === 'before' ? 'photoBeforeUrl' : 'photoAfterUrl']: uploadResult.url,
         }),
       });
       const result = await res.json();
