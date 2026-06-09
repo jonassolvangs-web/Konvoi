@@ -38,9 +38,13 @@ const markerConfig: Record<string, { emoji: string; bg: string }> = {
   klar:            { emoji: '🎯', bg: '#111827' },
 };
 
+// Cache icons to prevent re-creation on zoom/re-render
+const iconCache: Record<string, L.DivIcon> = {};
+
 function createEmojiIcon(markerType: string) {
+  if (iconCache[markerType]) return iconCache[markerType];
   const config = markerConfig[markerType] || markerConfig.ikke_ringt;
-  return L.divIcon({
+  const icon = L.divIcon({
     className: '',
     html: `<div style="
       width: 36px;
@@ -58,6 +62,8 @@ function createEmojiIcon(markerType: string) {
     iconSize: [36, 36],
     iconAnchor: [18, 18],
   });
+  iconCache[markerType] = icon;
+  return icon;
 }
 
 function getMarkerType(org: Organization, orgMarkerTypes?: Record<string, string>): string {
@@ -84,6 +90,7 @@ export default function MapView({ organizations, statusFilter, onSelectOrg, orgM
       zoom={12}
       style={{ height: '100%', width: '100%' }}
       zoomControl={false}
+      markerZoomAnimation={false}
     >
       <TileLayer
         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
